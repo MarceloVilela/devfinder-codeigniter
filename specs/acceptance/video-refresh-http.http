@@ -14,13 +14,14 @@ Content-Type: application/json
 {}
 
 ### POST /video/refresh — lote misto (novo / duplicado / canal inexistente), com token
-# Fixture equivalente ao usado no comando `spark` agendado da Fase 6 (ver plan.md Fase 6),
-# campos no schema `AddVideo` de fase-0-openapi.yaml (`channel`, nao `channel_name` — mesma
-# distincao de formato ja documentada em ../../serverless/specs/fase-6-ingestao-lote.md,
-# "Descoberta que orienta o desenho", que se aplica igual aqui). Esperado: 200,
-# videosAdded com 1 item novo (channel_id: otavio-miranda), videosFounded com
-# up0im04clS8 (ja existe no seed real), errors com o candidato de canal inexistente
-# (mesmo errorMessage de POST /video / video/refresh agendado).
+# Candidatos no schema `AddVideo` de fase-0-openapi.yaml (`channel`, nao `channel_name` —
+# App\Commands\VideoRefresh normaliza esse campo na borda antes de chamar o mesmo
+# App\Libraries\VideoIngestor::ingest() que esta rota usa; mesma distincao de formato ja
+# documentada em ../../serverless/specs/fase-6-ingestao-lote.md, "Descoberta que orienta o
+# desenho"). Esperado: 200, videosAdded com 1 item novo (channel_id inteiro do canal "Otavio
+# Miranda" no seed real, specs/seed/), videosFounded com up0im04clS8 (ja existe no seed
+# real), errors com o candidato de canal inexistente (mesmo errorMessage de POST /video /
+# video:refresh agendado).
 POST {{baseUrl}}/video/refresh
 Authorization: Bearer {{authToken}}
 Content-Type: application/json

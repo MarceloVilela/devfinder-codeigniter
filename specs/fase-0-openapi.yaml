@@ -174,8 +174,10 @@ paths:
       summary: Synchronize channels
       description: >
         Consult the list of channels, check which ones are not yet registered, then
-        register. Escopo de canal (ao contrário do de vídeo) ainda sem plano de execução
-        nem na versão ../serverless nem aqui — ver ../plan.md, Fase 6.
+        register. Escopo de canal descoped por decisão do usuário na execução da Fase 6
+        (mesma decisão do projeto irmão ../serverless) — ver specs/fase-6-ingestao-lote.md,
+        "Escopo". Documentado aqui por completude do contrato original; não implementado
+        nesta stack.
       x-auth: required
       security: [{ bearerAuth: [] }]
       responses:

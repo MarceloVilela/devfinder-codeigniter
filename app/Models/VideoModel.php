@@ -81,4 +81,28 @@ class VideoModel extends Model
     {
         return preg_replace('/&pp=[^&]*/', '', $url);
     }
+
+    /**
+     * Corrige thumbnail `hq720_custom_N` (frame-grab assinado por `sqp`/`rs`, renderiza
+     * quebrado com frequência — mesmo achado documentado em
+     * `VideoRefreshController.ts`/`resolveThumbnail`) trocando pelo `hqdefault` estável do
+     * mesmo vídeo. Só usado pela ingestão em lote (Fase 6) — `POST /video` (store()) tem sua
+     * própria regra, mais simples (só cobre thumbnail vazia).
+     *
+     * Diferença deliberada em relação ao original: o watch_id do fallback vem de
+     * `extractYoutubeId()` (0 falhas em 500 vídeos reais), não de `url.split('=')[1]` do JS
+     * — o `split` só funciona por sorte quando não há outro `=` antes de `v=` na URL.
+     */
+    public static function resolveThumbnail(string $thumbnail, string $url): string
+    {
+        if (preg_match('#/vi/([^/]+)/hq720_custom_\d+\.jpg#', $thumbnail, $matches)) {
+            $watchId = $matches[1];
+        } elseif ($thumbnail !== '') {
+            return $thumbnail;
+        } else {
+            $watchId = self::extractYoutubeId($url) ?? '';
+        }
+
+        return "https://i.ytimg.com/vi/{$watchId}/hqdefault.jpg";
+    }
 }

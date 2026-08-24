@@ -1,0 +1,44 @@
+Execução real da Fase 6 (ingestão em lote de vídeos) contra http://localhost:8081 (Docker
+Compose local, banco recém-migrado + `php spark seed:local` com o dump real de
+specs/seed/), Command `php spark video:refresh` + os 3 casos .http de
+video-refresh-http.http via `npx httpyac send video-refresh-http.http --env local --all -o
+short`. Gerado em 2026-08-24.
+
+Credenciais reais de videorefresh.jsonbinApiKey/jsonbinIdSubs (.env, mesmo bin já usado em
+produção pelo devfinder-api original) já estavam disponíveis — testado direto contra o
+JSONBin.io real, sem fixture local.
+
+=== php spark video:refresh (banco recém-seedado, 500 vídeos do dump real) ===
+$ docker compose exec app php spark video:refresh
+JSONBin: 50 candidato(s) encontrado(s).
+Adicionados: 20 | Já existiam: 30 | Erros: 0
+
+Confere com o mesmo bin real observado em produção pelo projeto irmão
+(../serverless/specs/fase-6-ingestao-lote.md, item 4: "candidatos=50 added=20 duplicated=30
+errors=0") — mesmos números, evidência de paridade comportamental entre as duas stacks.
+
+=== php spark video:refresh (rodado de novo, idempotência) ===
+$ docker compose exec app php spark video:refresh
+JSONBin: 50 candidato(s) encontrado(s).
+Adicionados: 0 | Já existiam: 50 | Erros: 0
+
+=== video-refresh-http.http — POST /video/refresh (3 casos) ===
+=== POST /video/refresh — sem token ===
+POST http://localhost:8081/v1/video/refresh
+=> 401 (12 ms, 240 B)      {"error": "Token not provided."}
+
+=== POST /video/refresh — record ausente/vazio, com token ===
+POST http://localhost:8081/v1/video/refresh
+=> 200 (8 ms, 376 B)       {"videosAdded": [], "videosFounded": [], "errors": []}
+
+=== POST /video/refresh — lote misto (novo / duplicado / canal inexistente), com token ===
+POST http://localhost:8081/v1/video/refresh
+=> 200 (12 ms, 1.95 kB)    videosAdded: 1 item (youtube_id HTTPNEWVIDEO1, channel_id do
+                           canal real "Otávio Miranda"); videosFounded: 1 item (up0im04clS8,
+                           já existia no seed real); errors: 1 item (canal inexistente).
+
+3/3 requests com o status esperado documentado em cada bloco de video-refresh-http.http.
+
+Nota: o vídeo HTTPNEWVIDEO1 criado pelo 3º caso fica no banco depois da rodada (mesmo padrão
+de video-store.http, Fase 5 — reexecutar sem resetar o banco faria esse candidato virar
+"duplicado" em vez de "added", não é um bug).

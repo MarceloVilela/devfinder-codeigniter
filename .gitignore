@@ -13,6 +13,11 @@
 specs/acceptance/http-client.private.env.json
 
 #-------------------------
+# Seed data (dump real de terceiros — LGPD/marca, ver specs/seed/README.md)
+#-------------------------
+specs/seed/*.json
+
+#-------------------------
 # Operating Specific Junk Files
 #-------------------------
 

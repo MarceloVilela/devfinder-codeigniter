@@ -14,7 +14,7 @@ info:
     aqui, e qualquer discrepância encontrada durante a implementação deve ser corrigida aqui
     primeiro.
 servers:
-  - url: http://localhost:8080/v1
+  - url: http://localhost:8081/v1
     description: Docker Compose local (PHP-FPM + Nginx + MySQL, ver ../plan.md Fase 2)
   - url: https://TBD.exemplo.com/v1
     description: >

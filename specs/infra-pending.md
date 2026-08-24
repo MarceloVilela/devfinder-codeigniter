@@ -10,15 +10,27 @@ Padrão aplicado: mesma régua do projeto irmão (`../serverless/CLAUDE.md`, "Re
 — **genuinamente sempre-gratuito**, não trial de 12 meses, não crédito promocional que expira,
 não "free tier" que vira cobrança se esquecido.
 
-**Decisão**: **não tomada ainda** — deliberadamente adiada para a execução da Fase 2 (fase de
-deploy), não travada durante o planejamento. Uma pesquisa anterior (2026-08-23) tinha chegado
-numa recomendação específica, mas ela não se aplica a este projeto (confundida com contexto de
-outro projeto) e foi removida daqui em 2026-08-24 — não usar como referência.
+**Decisão**: **ainda não tomada** — pesquisa feita na execução da Fase 2 (2026-08-24, via
+WebSearch, não memória — free tier muda com frequência), mas o usuário optou por só registrar
+as opções agora e decidir/provisionar depois, quando tiver a conta pronta. Uma pesquisa anterior
+(2026-08-23) tinha chegado numa recomendação específica, mas ela não se aplica a este projeto
+(confundida com contexto de outro projeto) e foi removida daqui em 2026-08-24 — não usar como
+referência.
 
-**Ainda por fazer**: pesquisar de novo as opções de hospedagem PHP+MySQL genuinamente
-sempre-gratuitas (não trial) quando a Fase 2 começar de fato, e registrar a decisão aqui com a
-mesma régua acima. Documentar o provisionamento manual num runbook, mesmo padrão de runbook
-humano já usado no projeto irmão `../serverless`.
+**Candidatos levantados (2026-08-24)** — os dois rodam o `docker-compose.yml` real (VM
+completa com Docker, não hosting compartilhado sem suporte a container):
+
+| Opção | Recursos sempre-gratuitos | Risco documentado |
+|---|---|---|
+| **Oracle Cloud Always Free** | VM Ampere A1 — **2 OCPU / 12GB RAM** (Oracle cortou pela metade em 2026-06-15, de 4/24GB, sem aviso público prévio), 200GB de disco em bloco, 10TB de saída/mês. | Risco de **disponibilidade**, não de cobrança: relatos de instâncias sendo reclamadas/encerradas por falta de capacidade na região, e o próprio corte de 2026-06 mostra que os termos podem mudar sem aviso. Ainda assim seria a opção com mais RAM/CPU de sobra pro nosso caso (app pequeno). |
+| **Google Cloud e2-micro Always Free** | 1 VM `e2-micro` (só regiões dos EUA: `us-west1`/`us-east1`/`us-central1`), 30GB de disco padrão, **1GB de saída/mês**. | Exige conta de billing (Blaze/pay-as-you-go) anexada mesmo para uso 100% dentro da cota — risco real de cobrança acidental se estourar a cota (1GB de egress/mês é pouco margem pra uma API real, ainda que baixo tráfego). Recursos mais escassos que a Oracle, mas historicamente mais estável (é o único VM sempre-gratuito dos grandes provedores que nunca teve o limite cortado). |
+
+**Ainda por fazer**: escolher entre as duas (ou pesquisar de novo se ambas mudarem de novo —
+free tier é terreno instável, reconfirmar antes de provisionar de verdade) e documentar o
+provisionamento manual num runbook, mesmo padrão de runbook humano já usado no projeto irmão
+`../serverless`. Enquanto isso, `docker-compose.yml` na raiz do projeto já reproduz localmente
+o mesmo conjunto de containers (PHP-FPM + Nginx + MySQL) que rodaria em qualquer uma das duas
+opções — a Fase 2 não fica bloqueada por essa decisão continuar em aberto.
 
 ## 2. Context7 MCP — cobertura CodeIgniter 4, e o que ele NÃO cobre
 

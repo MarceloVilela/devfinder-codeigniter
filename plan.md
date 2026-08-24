@@ -134,7 +134,13 @@ mapeada a uma query concreta sem N+1 não documentado. PR mergeado.
 
 ## 3. Fase 2 — Infraestrutura base (scaffold + Docker + deploy real)
 
-- `composer create-project codeigniter4/appstarter` em `./php-codei/api/`.
+- `composer create-project codeigniter4/appstarter` **na raiz de `./php-codei`**, não numa
+  subpasta `api/` — decisão revista na execução da Fase 2: o próprio template
+  `codeigniter4/appstarter` já vem com `app/`, `public/`, `tests/`, `writable/`,
+  `composer.json` soltos na sua raiz (conferido em `codeigniter4/appstarter` real, via `gh
+  api`), ou seja, é desenhado pra *virar* a raiz do projeto onde é instalado — não pra ocupar
+  uma subpasta. Um `api/` extra (herdado sem verificação da estrutura do `../serverless`,
+  onde faz sentido por outros motivos) seria menos idiomático aqui sem trazer benefício real.
 - Docker Compose: PHP-FPM + Nginx + MySQL — **mesmo conjunto de containers usado no deploy
   real** (ver `specs/infra-pending.md`), não um ambiente local divergente.
 - Migrations da Fase 1 aplicadas via `php spark migrate` dentro do container.

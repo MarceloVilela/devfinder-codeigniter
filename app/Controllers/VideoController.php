@@ -2,6 +2,7 @@
 
 namespace App\Controllers;
 
+use App\Libraries\VideoIngestor;
 use App\Models\ChannelModel;
 use App\Models\ChannelReactionModel;
 use App\Models\DevModel;
@@ -137,6 +138,27 @@ class VideoController extends BaseController
         ]);
 
         return $this->response->setStatusCode(201)->setJSON($this->present($this->videos->findByYoutubeId($youtubeId)));
+    }
+
+    /**
+     * POST /video/refresh (auth) — ingestão em lote, mesmo serviço usado pelo Command
+     * `spark video:refresh` (App\Libraries\VideoIngestor); só muda a origem dos candidatos:
+     * aqui vem do body `{ record: AddVideo[] }` (contrato `fase-0-openapi.yaml`), lá vem do
+     * JSONBin.io. Shape de resposta paridade com `VideoRefreshController.store` original:
+     * `{ videosAdded, videosFounded, errors }`.
+     */
+    public function refresh()
+    {
+        $body       = $this->request->getJSON(true);
+        $candidates = $body['record'] ?? [];
+
+        $result = (new VideoIngestor())->ingest($candidates);
+
+        return $this->response->setJSON([
+            'videosAdded'   => array_map($this->present(...), $result['videosAdded']),
+            'videosFounded' => array_map($this->present(...), $result['videosFounded']),
+            'errors'        => $result['errors'],
+        ]);
     }
 
     private function present(array $video): array

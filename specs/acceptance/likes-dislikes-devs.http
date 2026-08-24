@@ -1,41 +1,51 @@
 ### POST /likes/devs/{username} — alvo inexistente
-# Esperado: 400, {"error":"Dev not exists"}.
+# Confirmado: 400, {"error":"Dev not exists"}.
 POST {{baseUrl}}/likes/devs/no-such-dev-zzz
 Authorization: Bearer {{authToken}}
 
-### POST /likes/devs/{username} — alvo existente (dev real do seed)
-# Esperado: 200, Dev autenticado com "akitaonrails" em likes (UpdateItem ADD, idempotente).
-POST {{baseUrl}}/likes/devs/akitaonrails
+### POST /likes/devs/{username} — alvo existente (dev04, fixture sintética)
+# Confirmado: 200, Dev autenticado com `dev04` (`_id: 4`) em `likes` — `INSERT` idempotente
+# via chave composta (repetir esta mesma request não duplica nem dá erro de unicidade).
+POST {{baseUrl}}/likes/devs/dev04
 Authorization: Bearer {{authToken}}
 
-### GET /likes/devs — devs no Set `likes` do autenticado
-# Esperado: 200, array de Dev incluindo "akitaonrails", nunca o proprio autenticado (achado
-# #12 de specs/fase-5-escrita-relacionamentos.md).
+### POST /likes/devs/{username} — o próprio autenticado (auto-like)
+# Assume `{{authToken}}` = token de `dev01` (default de `http-client.private.env.json`) —
+# se `authToken` estiver configurado pra outro Dev, trocar `dev01` abaixo pelo username
+# correspondente pra este caso testar auto-like de verdade.
+# Confirmado: 200, `likes` INALTERADO — no-op silencioso. Divergência deliberada do original
+# (que não tinha proteção nenhuma pra esse caso): a `CHECK (dev_id <> target_dev_id)` da
+# Fase 1 proíbe estruturalmente; `DevReactionModel::add()` verifica antes de tentar o
+# INSERT, então nunca chega a bater na constraint.
+POST {{baseUrl}}/likes/devs/dev01
+Authorization: Bearer {{authToken}}
+
+### GET /likes/devs — devs no `likes` do autenticado
+# Confirmado: 200, array de Dev incluindo `dev04`.
 GET {{baseUrl}}/likes/devs
 Authorization: Bearer {{authToken}}
 
 ### DELETE /likes/devs/{username} — remove o like
-# Esperado: 200, Dev autenticado sem "akitaonrails" em likes (UpdateItem DELETE, idempotente
-# — repetir a chamada continua 200).
-DELETE {{baseUrl}}/likes/devs/akitaonrails
+# Confirmado: 200, Dev autenticado sem `dev04` em `likes` — idempotente (repetir continua 200).
+DELETE {{baseUrl}}/likes/devs/dev04
 Authorization: Bearer {{authToken}}
 
 ### POST /dislikes/devs/{username} — alvo inexistente
-# Esperado: 400, {"error":"Dev not exists"}.
+# Confirmado: 400, {"error":"Dev not exists"}.
 POST {{baseUrl}}/dislikes/devs/no-such-dev-zzz
 Authorization: Bearer {{authToken}}
 
-### POST /dislikes/devs/{username} — alvo existente
-# Esperado: 200, Dev autenticado com "akitaonrails" em deslikes.
-POST {{baseUrl}}/dislikes/devs/akitaonrails
+### POST /dislikes/devs/{username} — alvo existente (dev05)
+# Confirmado: 200, Dev autenticado com `dev05` em `deslikes`.
+POST {{baseUrl}}/dislikes/devs/dev05
 Authorization: Bearer {{authToken}}
 
 ### GET /dislikes/devs
-# Esperado: 200, array de Dev incluindo "akitaonrails".
+# Confirmado: 200, array de Dev incluindo `dev05`.
 GET {{baseUrl}}/dislikes/devs
 Authorization: Bearer {{authToken}}
 
 ### DELETE /dislikes/devs/{username} — remove o dislike
-# Esperado: 200, Dev autenticado sem "akitaonrails" em deslikes.
-DELETE {{baseUrl}}/dislikes/devs/akitaonrails
+# Confirmado: 200, Dev autenticado sem `dev05` em `deslikes`.
+DELETE {{baseUrl}}/dislikes/devs/dev05
 Authorization: Bearer {{authToken}}

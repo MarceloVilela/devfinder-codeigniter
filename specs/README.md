@@ -24,7 +24,7 @@ repositório.
 | 2 | Infraestrutura base (scaffold + Docker + deploy real) | ✅ mergeada (PR #3) — host real ainda adiado (decisão do usuário) |
 | 3 | Migração dos endpoints públicos de leitura | ✅ mergeada (PR #4) |
 | 4 | Autenticação (GitHub OAuth + JWT via Filters) | ✅ gerada 2026-08-24 — validada contra Docker Compose local, pendente PR |
-| 5 | Endpoints autenticados de escrita e relacionamento | ⬜ não iniciada |
+| 5 | Endpoints autenticados de escrita e relacionamento | ✅ gerada 2026-08-24 — 25/25 requests validadas, pendente PR |
 | 6 | Ingestão em lote (`spark` command + cron) | ⬜ não iniciada |
 | 7 | Observabilidade, testes e corte (cutover) | ⬜ não iniciada |
 
@@ -44,9 +44,16 @@ Fase 4 (Autenticação — GitHub OAuth + JWT via CI4 Filters, ver
 `DevModel::findOrCreate`, personalização reativada em `GET /devs`/`GET /feed/trending`.
 Validado com JWTs sintéticos e, depois, com login real: usuário cadastrou um GitHub OAuth App
 de verdade, completou o fluxo no navegador, `GET /me` confirmado com dado real do GitHub
-(nome, avatar) — ver `fase-4-endpoints-auth.md`, "Verificação humana". Host real provisionado
-continua adiado (decisão do usuário — opções em `infra-pending.md`). Próximo passo: Fase 5
-(endpoints autenticados de escrita).
+(nome, avatar) — ver `fase-4-endpoints-auth.md`, "Verificação humana".
+
+Fase 5 (endpoints autenticados de escrita — `POST /devs`, `/channels`, `/video`, os 4 pares
+like/dislike/follow/ignore, ver `fase-5-escrita-relacionamentos.md`) gerada no mesmo dia: 13
+endpoints, 25/25 requests validadas de verdade (`execucao-fase-5.log`). 3 bugs reais
+encontrados rodando (não só lendo código): `*/g` num comentário PHPDoc quebrando a sintaxe
+PHP de verdade, `find(false)` do CI4 devolvendo a tabela inteira em vez de nada, e o
+placeholder `{id}` de `is_unique` no `update()` só resolvendo a partir dos dados passados, não
+do argumento `$id`. Host real provisionado continua adiado (decisão do usuário — opções em
+`infra-pending.md`). Próximo passo: Fase 6 (ingestão em lote).
 
 ## Artefatos gerados
 
@@ -60,3 +67,4 @@ continua adiado (decisão do usuário — opções em `infra-pending.md`). Próx
 | `fase-2-scaffold-infra.md` | ✅ gerado 2026-08-24 (Fase 2) — scaffold CI4 na raiz (não `api/`), Docker Compose (PHP-FPM 8.3 + Nginx + MySQL 8.4) validado de ponta a ponta, CI (GitHub Actions), achado real de MySQL/InnoDB (CHECK + ON UPDATE CASCADE incompatíveis), pesquisa de hospedagem sempre-gratuita (decisão adiada). |
 | `fase-3-endpoints-leitura.md` | ✅ gerado 2026-08-24 (Fase 3) — 9 endpoints públicos de leitura implementados (Models/Controllers/rotas), fixture sintética de seed, 5 achados reais do CI4 (tipo string vs int no MySQLi, `(:any)` não cruzando `/`, `%2F` em path, clamp de página do `Pager`, Debug Toolbar em resposta `text/html`), validado manualmente contra Docker Compose local. |
 | `fase-4-endpoints-auth.md` | ✅ gerado e **fluxo OAuth real confirmado** 2026-08-24 (Fase 4) — GitHub OAuth + JWT (`firebase/php-jwt`) via `RequiredAuthFilter`/`OptionalAuthFilter`, `DevModel::findOrCreate`, personalização reativada em `/devs`/`/feed/trending`. Decisões reaproveitadas do projeto irmão (payload `{username}`, `?user=` preservado) + 4 achados novos (prefixo `hex2bin:` não é genérico, Filters do CI4 sem o problema de `identitySource` do API Gateway, divergência 401 vs 400 em `/me`, scope do GitHub OAuth corrigido pra paridade). Validado com JWT sintético **e** login real no GitHub (usuário cadastrou OAuth App, `GET /me` retornou dado real). |
+| `fase-5-escrita-relacionamentos.md` | ✅ gerado 2026-08-24 (Fase 5) — 13 endpoints de escrita (`POST /devs`, `/channels`, `/video`, 4 pares like/dislike/follow/ignore + 2 GET de listagem), 2 bugs reais corrigidos no design (Dev.create sem username no original, AddChannel incompleto no OpenAPI) + 3 bugs reais do framework encontrados rodando (`*/g` em PHPDoc, `find(false)` devolvendo tabela inteira, placeholder `{id}` de `is_unique`). 25/25 requests validadas via `httpyac` contra banco limpo. |

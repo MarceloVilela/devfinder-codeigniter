@@ -50,4 +50,16 @@ class DevController extends BaseController
         // 200 + null (não 404) — paridade com `Dev.findOne` do Mongo original.
         return $this->response->setJSON($dev === null ? null : DevPresenter::present($dev));
     }
+
+    /**
+     * POST /devs (auth) — paridade com `DevController.store` original: sempre 201, mesmo
+     * se o Dev já existir (`findOrCreateDev` não distingue os dois casos na resposta).
+     */
+    public function store()
+    {
+        $username = (string) $this->request->getJSON(true)['username'];
+        $dev = $this->devs->findOrCreate(['username' => $username]);
+
+        return $this->response->setStatusCode(201)->setJSON(DevPresenter::present($dev));
+    }
 }

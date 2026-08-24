@@ -21,9 +21,9 @@ repositório.
 |---|---|---|
 | 0 | Especificação (contrato + ferramentas de contexto) | ✅ encerrada — revisada 2026-08-24 |
 | 1 | Especificação de dados (MySQL relacional) | ✅ encerrada — mergeada 2026-08-24 (PR #2) |
-| 2 | Infraestrutura base (scaffold + Docker + deploy real) | ✅ gerada 2026-08-24 — host real adiado (decisão do usuário), pendente PR |
-| 3 | Migração dos endpoints públicos de leitura | ✅ gerada 2026-08-24 — validada contra Docker Compose local, pendente PR |
-| 4 | Autenticação (GitHub OAuth + JWT via Filters) | ⬜ não iniciada |
+| 2 | Infraestrutura base (scaffold + Docker + deploy real) | ✅ mergeada (PR #3) — host real ainda adiado (decisão do usuário) |
+| 3 | Migração dos endpoints públicos de leitura | ✅ mergeada (PR #4) |
+| 4 | Autenticação (GitHub OAuth + JWT via Filters) | ✅ gerada 2026-08-24 — validada contra Docker Compose local, pendente PR |
 | 5 | Endpoints autenticados de escrita e relacionamento | ⬜ não iniciada |
 | 6 | Ingestão em lote (`spark` command + cron) | ⬜ não iniciada |
 | 7 | Observabilidade, testes e corte (cutover) | ⬜ não iniciada |
@@ -35,9 +35,18 @@ design DynamoDB do projeto irmão), criada fixture sintética de seed
 (`app/Database/Seeds/Acceptance*.php`), implementados Models/Controllers/rotas, e validados
 manualmente todos os 9 endpoints contra o Docker Compose local. 5 achados reais registrados
 (tipo string vs int em MySQLi, `(:any)` não cruzando `/`, `%2F` não sobrevivendo em path,
-`Pager` fazendo clamp de página, Debug Toolbar poluindo resposta `text/html`). Host real
-provisionado continua adiado (decisão do usuário — opções em `infra-pending.md`). Próximo
-passo: Fase 4 (Autenticação).
+`Pager` fazendo clamp de página, Debug Toolbar poluindo resposta `text/html`) — mais 2 achados
+de CI corrigidos depois do merge (`CI_ENVIRONMENT=testing` quebrando `spark migrate`, PCOV
+ausente fazendo `phpunit` sair com exit 1 mesmo passando), ver `CLAUDE.md`.
+
+Fase 4 (Autenticação — GitHub OAuth + JWT via CI4 Filters, ver
+`fase-4-endpoints-auth.md`) gerada no mesmo dia: `RequiredAuthFilter`/`OptionalAuthFilter`,
+`DevModel::findOrCreate`, personalização reativada em `GET /devs`/`GET /feed/trending`.
+Validado com JWTs sintéticos e, depois, com login real: usuário cadastrou um GitHub OAuth App
+de verdade, completou o fluxo no navegador, `GET /me` confirmado com dado real do GitHub
+(nome, avatar) — ver `fase-4-endpoints-auth.md`, "Verificação humana". Host real provisionado
+continua adiado (decisão do usuário — opções em `infra-pending.md`). Próximo passo: Fase 5
+(endpoints autenticados de escrita).
 
 ## Artefatos gerados
 
@@ -50,3 +59,4 @@ passo: Fase 4 (Autenticação).
 | `fase-1-data-model.md` | ✅ gerado, revisado e **validado contra MySQL real na Fase 2** (2026-08-24) — 7 tabelas relacionais (`devs`, `channels`, `tags`, `channel_tag`, `videos`, `dev_reactions`, `channel_reactions`), evidência do dump real do projeto irmão (colisão de `channels.name`, campo vestigial `alternativeLink`, extração de `youtube_id`), migrations CI4 completas com soft delete + `UNIQUE` em `channels.name`/`link`, cobertura de todas as 30 operações do OpenAPI. |
 | `fase-2-scaffold-infra.md` | ✅ gerado 2026-08-24 (Fase 2) — scaffold CI4 na raiz (não `api/`), Docker Compose (PHP-FPM 8.3 + Nginx + MySQL 8.4) validado de ponta a ponta, CI (GitHub Actions), achado real de MySQL/InnoDB (CHECK + ON UPDATE CASCADE incompatíveis), pesquisa de hospedagem sempre-gratuita (decisão adiada). |
 | `fase-3-endpoints-leitura.md` | ✅ gerado 2026-08-24 (Fase 3) — 9 endpoints públicos de leitura implementados (Models/Controllers/rotas), fixture sintética de seed, 5 achados reais do CI4 (tipo string vs int no MySQLi, `(:any)` não cruzando `/`, `%2F` em path, clamp de página do `Pager`, Debug Toolbar em resposta `text/html`), validado manualmente contra Docker Compose local. |
+| `fase-4-endpoints-auth.md` | ✅ gerado e **fluxo OAuth real confirmado** 2026-08-24 (Fase 4) — GitHub OAuth + JWT (`firebase/php-jwt`) via `RequiredAuthFilter`/`OptionalAuthFilter`, `DevModel::findOrCreate`, personalização reativada em `/devs`/`/feed/trending`. Decisões reaproveitadas do projeto irmão (payload `{username}`, `?user=` preservado) + 4 achados novos (prefixo `hex2bin:` não é genérico, Filters do CI4 sem o problema de `identitySource` do API Gateway, divergência 401 vs 400 em `/me`, scope do GitHub OAuth corrigido pra paridade). Validado com JWT sintético **e** login real no GitHub (usuário cadastrou OAuth App, `GET /me` retornou dado real). |

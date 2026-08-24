@@ -1,31 +1,38 @@
-### auth-github (fluxo GitHub OAuth completo, Fase 4 — specs/fase-4-auth.md)
+### auth-github (fluxo GitHub OAuth completo, Fase 4 — specs/fase-4-endpoints-auth.md)
 #
-# Nao e testavel so com REST Client: o fluxo real envolve um redirect de browser pro
-# GitHub (tela de autorizacao) e volta com um `code` de uso unico. Passos manuais:
+# Não é testável só com REST Client: o fluxo real envolve um redirect de browser pro
+# GitHub (tela de autorização) e volta com um `code` de uso único. Passos manuais:
 #
-# 1. Preencher .env (raiz do projeto, sem subpasta api/ — ver CLAUDE.md, "Repositório
-#    remoto"): GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET (de um GitHub OAuth App real, ver
-#    github.com/settings/developers — Authorization callback URL deve apontar pra
-#    APP_API_URL + /auth/github/callback), APP_SECRET, APP_API_URL, APP_WEB_URL.
-# 2. `docker compose up` (sobe PHP-FPM + Nginx + MySQL, ver plan.md Fase 2).
-# 3. Abrir {{baseUrl}}/auth/github no browser (nao da pra seguir redirect via REST Client
-#    Extension) — loga no GitHub, autoriza o OAuth App.
-# 4. GitHub redireciona pro callback, que troca `code` por token e redireciona pro
-#    front (`APP_WEB_URL/login?token=...`). Copiar o `token` da URL final.
+# 1. Preencher `.env` (raiz do projeto): `auth.githubClientId`, `auth.githubClientSecret`
+#    (de um GitHub OAuth App real, ver github.com/settings/developers — Authorization
+#    callback URL = {baseUrl sem /v1}/v1/auth/github/callback), `auth.jwtSecret`,
+#    `auth.webURL` (URL do devfinder-next).
+# 2. `docker compose up` (PHP-FPM + Nginx + MySQL, ver plan.md Fase 2).
+# 3. Abrir {{baseUrl}}/auth/github no browser (não dá pra seguir redirect via REST Client)
+#    — loga no GitHub, autoriza o OAuth App.
+# 4. GitHub redireciona pro callback, que troca `code` por token e redireciona pro front
+#    (`auth.webURL/login?token=...`). Copiar o `token` da URL final.
 # 5. Usar esse token em specs/acceptance/me.http (`{{authToken}}`) pra confirmar
 #    `GET /me` funcionando ponta-a-ponta.
 #
-# Os dois casos abaixo SAO testaveis via REST Client (nao dependem do browser):
+# **Não exercitado nesta execução** (2026-08-24): sem GitHub OAuth App real configurado
+# neste ambiente — mesma pendência já documentada em
+# `../../../serverless/specs/fase-4-auth.md`. Mecanismo (`GithubOAuth::exchangeCodeForToken`/
+# `fetchProfile`) verificado só por leitura de código + teste isolado de
+# `DevModel::findOrCreate` (ver caso de teste abaixo, fora deste arquivo).
+#
+# Os dois casos abaixo SÃO testáveis via REST Client (não dependem do browser) — validados
+# de verdade contra o Docker Compose local em 2026-08-24:
 
-### GET /auth/github — so a parte do redirect, sem seguir
-# Esperado: 302, header Location = https://github.com/login/oauth/authorize?client_id=...
-# &redirect_uri=<APP_API_URL>%2Fauth%2Fgithub%2Fcallback (sem scope — passport-github nao
-# configurava nenhum no original, ver githubRedirect.ts).
+### GET /auth/github — só a parte do redirect, sem seguir
+# Confirmado: 302, Location = https://github.com/login/oauth/authorize?client_id=&redirect_uri=...
+# — sem `scope` (paridade com o `passport-github` original, que não configurava nenhum;
+# perfil público não precisa de escopo). `client_id` vazio no ambiente local porque
+# `auth.githubClientId` não está preenchido (não temos GitHub OAuth App real aqui).
 GET {{baseUrl}}/auth/github
 
-### GET /auth/github/callback — sem `code` (caminho de falha, ex.: usuario negou no GitHub)
-# Esperado: 302, Location = <APP_WEB_URL>/login (sem `?token=`). Diferente do
+### GET /auth/github/callback — sem `code` (caminho de falha, ex.: usuário negou no GitHub)
+# Confirmado: 302, Location = <auth.webURL>/login (sem `?token=`). Diferente do
 # `failureRedirect: '/login'` original, que redirecionava pra um `/login` relativo ao
-# dominio da propria API (bug sem consumidor real, corrigido — ver
-# specs/fase-4-auth.md, "Registro de execucao da fase").
+# domínio da própria API (bug sem consumidor real, corrigido — não replicado).
 GET {{baseUrl}}/auth/github/callback

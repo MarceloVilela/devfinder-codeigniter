@@ -1,25 +1,36 @@
 ### GET /me — sem token
-# Esperado: 401 (RequiredAuthFilter do CodeIgniter nega antes de chegar no Controller —
-# corpo exato do erro a definir na Fase 4, nao necessariamente igual ao
-# `{error: 'Token not provided.'}` do devfinder-api original nem ao corpo default do API
-# Gateway usado na versao ../serverless).
+# Confirmado: 401, {"error":"Token not provided."} — mesma mensagem do `auth.ts` original.
 GET {{baseUrl}}/me
 
 ### GET /me — token malformado
-# Esperado: 401, mesmo corpo de erro do caso acima (definido na Fase 4).
+# Confirmado: 401, {"error":"Token invalid."} — mesma mensagem do `auth.ts` original.
 GET {{baseUrl}}/me
 Authorization: Bearer garbage.invalid.token
 
-### GET /me — token valido
-# Gerar com firebase/php-jwt (ja no composer.json apos a Fase 2): rodar de dentro do
-# projeto, com o mesmo APP_SECRET do .env local —
-#   php -r "require 'vendor/autoload.php'; use Firebase\JWT\JWT; echo JWT::encode(['username'=>'marcelovilela','exp'=>time()+7*86400], getenv('APP_SECRET'), 'HS256');"
-# Esperado: 200, corpo do Dev serializado (_id/user = "marcelovilela").
+### GET /me — token válido
+# `{{authToken}}` hoje é um token REAL — login de verdade no GitHub (ver
+# fase-4-endpoints-auth.md, "Verificação humana"), não um JWT sintético. Confirmado: 200,
+# corpo do Dev com dado real do GitHub (_id=37, user="marcelovilela", nome e avatar reais).
+#
+# Pra gerar um token sintético em vez de logar de verdade (ex.: pra testar contra a fixture
+# determinística — dev01 tem reações conhecidas, ver AcceptanceReactionSeeder), usar
+# firebase/php-jwt direto (payload { username, iat, exp }, HS256, secreto = auth.jwtSecret do
+# .env, SEM o truque `hex2bin:` — achado real: esse prefixo só é decodificado magicamente
+# pelo `Config\Encryption`, não é um padrão genérico do CI4 pra qualquer config; usar o valor
+# puro):
+#   php -r "require 'vendor/autoload.php'; use Firebase\JWT\JWT; \
+#     echo JWT::encode(['username'=>'dev01','iat'=>time(),'exp'=>time()+604800], \
+#     '<valor de auth.jwtSecret no .env>', 'HS256');"
 GET {{baseUrl}}/me
 Authorization: Bearer {{authToken}}
 
 ### GET /me — token de username inexistente
-# Esperado: 400, {"error":"DevProfile not exists"} — paridade com ProfileController.show
-# original (Dev.findById retorna null).
+# Decisão desta fase (diferente do original): 401 {"error":"Token invalid."}, NÃO 400
+# {"error":"DevProfile not exists"} como o `ProfileController.show` original. Motivo:
+# `RequiredAuthFilter` já resolve o Dev pelo `username` do token pra popular o AuthContext
+# (usado por outras rotas também, não só /me) — se o Dev não existe, trata como token
+# inválido em vez de deixar passar pro Controller pra um segundo tipo de erro. Efeito
+# prático pro frontend é igual ou melhor: `devfinder-next` só reage a 401 (interceptor de
+# "sessão expirada" em services/api.ts) — um 400 aqui ficaria como rejection não tratada.
 GET {{baseUrl}}/me
 Authorization: Bearer {{ghostAuthToken}}

@@ -7,7 +7,10 @@ use CodeIgniter\Database\Seeder;
 /**
  * Fixture sintética para os casos de aceite da Fase 3: 2 canais + tags, o suficiente pra
  * exercitar GET /channels, GET /channels/{searchQuery} (por nome e por link) e a montagem
- * de `tags` via channel_tag.
+ * de `tags` via channel_tag. Fase 5 adiciona um 3º canal ("Canal Zeta") sem nenhuma reação
+ * de baseline — dedicado aos testes de follow/ignore em `likes-dislikes-channels.http`, pra
+ * não mexer no `follow`/`ignore` de `dev01` em Alpha/Beta (usado por outros casos de aceite,
+ * ex. `feed-trending.http` `?user=dev01` espera `ignore` = [Canal Beta] intacto).
  */
 class AcceptanceChannelSeeder extends Seeder
 {
@@ -33,6 +36,15 @@ class AcceptanceChannelSeeder extends Seeder
                 'avatar'      => 'https://example.test/avatar/canal-beta.png',
                 'created_at'  => date('Y-m-d H:i:s', $base + 1),
                 'updated_at'  => date('Y-m-d H:i:s', $base + 1),
+            ],
+            [
+                'name'        => 'Canal Zeta',
+                'link'        => 'https://youtube.com/zeta',
+                'category'    => 'Testes',
+                'description' => 'Canal sintético Zeta — sem vídeos nem reações de baseline, dedicado a testes de escrita (Fase 5).',
+                'avatar'      => 'https://example.test/avatar/canal-zeta.png',
+                'created_at'  => date('Y-m-d H:i:s', $base + 2),
+                'updated_at'  => date('Y-m-d H:i:s', $base + 2),
             ],
         ]);
 

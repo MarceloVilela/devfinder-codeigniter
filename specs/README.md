@@ -20,7 +20,7 @@ repositório.
 | Fase | Nome | Status |
 |---|---|---|
 | 0 | Especificação (contrato + ferramentas de contexto) | ✅ encerrada — revisada 2026-08-24 |
-| 1 | Especificação de dados (MySQL relacional) | ✅ gerada e revisada 2026-08-24 — pendente PR |
+| 1 | Especificação de dados (MySQL relacional) | ✅ encerrada — mergeada 2026-08-24 (PR #2) |
 | 2 | Infraestrutura base (scaffold + Docker + deploy real) | ⬜ não iniciada |
 | 3 | Migração dos endpoints públicos de leitura | ⬜ não iniciada |
 | 4 | Autenticação (GitHub OAuth + JWT via Filters) | ⬜ não iniciada |
@@ -29,10 +29,10 @@ repositório.
 | 7 | Observabilidade, testes e corte (cutover) | ⬜ não iniciada |
 
 Fase 0 encerrada, revisada e mergeada (PR #1) em 2026-08-24. Fase 1 (modelo de dados MySQL)
-gerada no mesmo dia, evidência-baseada (schema Mongoose + dump real de produção do projeto
-irmão + código dos controllers) — falta só a revisão humana antes de abrir o PR
-`fase-1-data-model → main`. Próximo passo depois disso: Fase 2 (scaffold), que não pode
-começar antes desta spec estar aprovada (ver `../CLAUDE.md`, "Regra do projeto").
+gerada, revisada (evidência-baseada — schema Mongoose + dump real de produção do projeto
+irmão + código dos controllers) e mergeada (PR #2) no mesmo dia. Próximo passo: Fase 2
+(scaffold CI4 + Docker + deploy real), que consome as 7 migrations de
+`fase-1-data-model.md` para gerar o projeto real.
 
 ## Artefatos gerados
 

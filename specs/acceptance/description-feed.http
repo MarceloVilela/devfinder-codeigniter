@@ -1,0 +1,6 @@
+### GET /description/feed
+# Esperado: 200, Content-Type text/html, corpo = texto com quebras `<br />` listando os
+# canais dos videos de feed/trending?page=1 e hashtags derivadas das tags desses canais.
+# Fonte de dados: repositorios (listAllChannels + listTrending(1)) direto, sem HTTP
+# self-call — decisao 3 de specs/fase-3-endpoints-leitura.md.
+GET {{baseUrl}}/description/feed

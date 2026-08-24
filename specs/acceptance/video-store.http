@@ -1,0 +1,40 @@
+### POST /video — canal desconhecido
+# Esperado: 400, payload de erro completo (errorMessage/title/url/channel/channel_url/
+# thumbnail) — paridade com VideoController.store.
+POST {{baseUrl}}/video
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "title": "Video de teste",
+  "url": "https://www.youtube.com/watch?v=zzzTESTID001",
+  "channel": "Canal Que Nao Existe",
+  "channel_url": "https://www.youtube.com/channel/UCNAOEXISTE"
+}
+
+### POST /video — canal real do seed, video novo, sem thumbnail
+# Esperado: 201, thumbnail gerada a partir do videoId extraido
+# (https://i.ytimg.com/vi/zzzTESTID001/hqdefault.jpg — achado #9).
+POST {{baseUrl}}/video
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "title": "Video de teste Fase 5",
+  "url": "https://www.youtube.com/watch?v=zzzTESTID001",
+  "channel": "Rocketseat",
+  "channel_url": "https://www.youtube.com/channel/UCSfwM5u0Kce6Cce8_S72olg"
+}
+
+### POST /video — mesma url de novo
+# Esperado: 409, {"errorMessage": "video(...) already exists", ...video existente}.
+POST {{baseUrl}}/video
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "title": "Video de teste Fase 5 duplicado",
+  "url": "https://www.youtube.com/watch?v=zzzTESTID001",
+  "channel": "Rocketseat",
+  "channel_url": "https://www.youtube.com/channel/UCSfwM5u0Kce6Cce8_S72olg"
+}

@@ -43,6 +43,12 @@ Não implemente código de scaffold ou controllers antes de `specs/fase-0-openap
 `specs/fase-1-data-model.md` existirem e estarem aprovados — esse é o próximo passo imediato
 do plano.
 
+**Pull Request só quando o usuário pedir explicitamente.** Mesmo que o critério de aceite da
+fase já bata localmente (specs revisadas, testes passando, `docker compose up` funcionando
+etc.), não crie branch/commit/push/PR por conta própria — implementar até o critério bater é
+trabalho autônomo normal, mas abrir o PR é uma ação visível pro GitHub que fica pra decisão
+humana, sempre. Avise que a fase está pronta e pergunte, não presuma.
+
 ## Ferramentas de contexto CodeIgniter
 
 Para reduzir alucinação em convenções específicas do framework durante a implementação:

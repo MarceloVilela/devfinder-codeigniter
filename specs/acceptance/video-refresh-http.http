@@ -1,0 +1,52 @@
+### POST /video/refresh — sem token
+# Esperado: 401 (corpo de erro definido na Fase 4 — ver me.http).
+POST {{baseUrl}}/video/refresh
+Content-Type: application/json
+
+{ "record": [] }
+
+### POST /video/refresh — record ausente/vazio, com token
+# Esperado: 200, {videosAdded: [], videosFounded: [], errors: []} — resposta vazia, nao erro.
+POST {{baseUrl}}/video/refresh
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{}
+
+### POST /video/refresh — lote misto (novo / duplicado / canal inexistente), com token
+# Fixture equivalente ao usado no comando `spark` agendado da Fase 6 (ver plan.md Fase 6),
+# campos no schema `AddVideo` de fase-0-openapi.yaml (`channel`, nao `channel_name` — mesma
+# distincao de formato ja documentada em ../../serverless/specs/fase-6-ingestao-lote.md,
+# "Descoberta que orienta o desenho", que se aplica igual aqui). Esperado: 200,
+# videosAdded com 1 item novo (channel_id: otavio-miranda), videosFounded com
+# up0im04clS8 (ja existe no seed real), errors com o candidato de canal inexistente
+# (mesmo errorMessage de POST /video / video/refresh agendado).
+POST {{baseUrl}}/video/refresh
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "record": [
+    {
+      "title": "Video novo de teste HTTP — Otavio Miranda",
+      "url": "https://www.youtube.com/watch?v=HTTPNEWVIDEO1",
+      "channel": "Otávio Miranda",
+      "channel_url": "https://www.youtube.com/@otaviomiranda",
+      "thumbnail": "https://img.youtube.com/vi/HTTPNEWVIDEO1/hqdefault.jpg"
+    },
+    {
+      "title": "Como seu terminal está te enganando?",
+      "url": "https://www.youtube.com/watch?v=up0im04clS8",
+      "channel": "Otávio Miranda",
+      "channel_url": "https://www.youtube.com/@otaviomiranda",
+      "thumbnail": "https://img.youtube.com/vi/up0im04clS8/hqdefault.jpg"
+    },
+    {
+      "title": "Video de canal inexistente HTTP",
+      "url": "https://www.youtube.com/watch?v=DOESNOTMATTERHTTP",
+      "channel": "Canal Inexistente XYZ",
+      "channel_url": "https://www.youtube.com/canal-inexistente",
+      "thumbnail": ""
+    }
+  ]
+}

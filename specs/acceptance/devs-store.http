@@ -1,0 +1,24 @@
+### POST /devs — sem token
+# Esperado: 401 (requiredAuthorizer).
+POST {{baseUrl}}/devs
+Content-Type: application/json
+
+{ "username": "marcelovilela" }
+
+### POST /devs — dev ja existente (idempotente)
+# Esperado: 201, corpo do Dev ja existente (findOrCreateDev nao sobrescreve, ver
+# services/findOrCreateDev.ts) — nao e erro repetir.
+POST {{baseUrl}}/devs
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{ "username": "marcelovilela" }
+
+### POST /devs — dev novo (username real do GitHub, profile publico completa nome/bio/avatar)
+# Esperado: 201, name/avatar preenchidos a partir do profile publico do GitHub (bio pode vir
+# vazia se o usuario nao tiver bio publica).
+POST {{baseUrl}}/devs
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{ "username": "octocat" }

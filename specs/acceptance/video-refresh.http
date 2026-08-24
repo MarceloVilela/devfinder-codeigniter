@@ -1,0 +1,17 @@
+### video-refresh (comando `spark` agendado via cron, sem HTTP publico — ver plan.md Fase 6)
+#
+# Nao e uma rota HTTP (Command CodeIgniter rodado por crontab na VM do deploy real, nao um
+# Controller) — testada via `php spark`, nao curl/REST Client. Fixture equivalente cobre os
+# mesmos 3 caminhos do VideoRefreshController original (ver ../../devfinder-api):
+#   1. video novo, canal resolvido por NOME (channel_url do candidato diverge do `link`
+#      salvo no Channel — caso real ja observado na versao ../serverless, ver
+#      ../../serverless/specs/fase-3-v2.md, achado #7 no registro de execucao) -> "added".
+#   2. video cuja URL ja existe -> "duplicated".
+#   3. canal que nao existe (nem por link nem por nome) -> "errors".
+#
+# Comando (nome do Command a definir na Fase 6, ex.):
+#   php spark video:refresh --fixture=tests/fixtures/video-refresh-fixture.json
+#
+# Esperado (stdout): `videoRefresh: candidatos=3 added=1 duplicated=1 errors=1`, seguido do
+# array de erros com `errorMessage` citando o canal inexistente. Depois de rodar,
+# `GET /video/NEWVIDEO001` (ver video-show.http) deve responder 200 com o video recem-criado.

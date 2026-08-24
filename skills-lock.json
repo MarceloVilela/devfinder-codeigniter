@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "codeigniter": {
+      "source": "yasserstudio/codeigniter-skills",
+      "sourceType": "github",
+      "skillPath": "skills/codeigniter/SKILL.md",
+      "computedHash": "bb9848450212d9150df90faa19dcfbb87527340aa6ae09610e9ebdb566e46a84"
+    }
+  }
+}

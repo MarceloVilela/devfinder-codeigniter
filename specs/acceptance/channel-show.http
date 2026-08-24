@@ -1,0 +1,14 @@
+### GET /channels/{searchQuery} — encontrado por nome
+# Esperado: 200, corpo = Channel serializado (_id=slug — precisa ser o slug, nao um id
+# aleatorio: devfinder-next compara `user.follow.includes(channel._id)`, e `Dev.follow`
+# guarda slugs, ver specs/fase-3-endpoints-leitura.md, "Registro de execucao").
+GET {{baseUrl}}/channels/Rocketseat
+
+### GET /channels/{searchQuery} — nao encontrado
+# Esperado: 200 (nao 404) + corpo `null`.
+GET {{baseUrl}}/channels/nao-existe
+
+### GET /channels/{searchQuery} — busca por link (mudanca intencional vs. Mongo original)
+# Esperado: 200 + corpo `null` — Fase 1 decidiu que so lookup exato por slug (derivado do
+# name) e suportado; um link nao bate slug nenhum. Ver "Descobertas" #6.
+GET {{baseUrl}}/channels/https%3A%2F%2Fyoutube.com%2Fsome-link

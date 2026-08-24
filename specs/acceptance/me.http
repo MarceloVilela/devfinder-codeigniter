@@ -1,0 +1,25 @@
+### GET /me — sem token
+# Esperado: 401 (RequiredAuthFilter do CodeIgniter nega antes de chegar no Controller —
+# corpo exato do erro a definir na Fase 4, nao necessariamente igual ao
+# `{error: 'Token not provided.'}` do devfinder-api original nem ao corpo default do API
+# Gateway usado na versao ../serverless).
+GET {{baseUrl}}/me
+
+### GET /me — token malformado
+# Esperado: 401, mesmo corpo de erro do caso acima (definido na Fase 4).
+GET {{baseUrl}}/me
+Authorization: Bearer garbage.invalid.token
+
+### GET /me — token valido
+# Gerar com firebase/php-jwt (ja no composer.json apos a Fase 2): rodar de dentro do
+# projeto, com o mesmo APP_SECRET do .env local —
+#   php -r "require 'vendor/autoload.php'; use Firebase\JWT\JWT; echo JWT::encode(['username'=>'marcelovilela','exp'=>time()+7*86400], getenv('APP_SECRET'), 'HS256');"
+# Esperado: 200, corpo do Dev serializado (_id/user = "marcelovilela").
+GET {{baseUrl}}/me
+Authorization: Bearer {{authToken}}
+
+### GET /me — token de username inexistente
+# Esperado: 400, {"error":"DevProfile not exists"} — paridade com ProfileController.show
+# original (Dev.findById retorna null).
+GET {{baseUrl}}/me
+Authorization: Bearer {{ghostAuthToken}}

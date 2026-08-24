@@ -1,0 +1,18 @@
+### GET /devs — page 1 (dado real: specs/seed/omni8.devs.json, 40 devs)
+# Esperado: 200, corpo {docs, total: 40, itemsPerPage: 30}, docs.length = 30. Branch anonimo
+# (sem Authorization) — idem com ou sem Fase 4 aplicada, ver caso personalizado abaixo.
+GET {{baseUrl}}/devs?page=1
+
+### GET /devs — page 2 (resto: 40 - 30 = 10)
+GET {{baseUrl}}/devs?page=2
+
+### GET /devs — sem page (default = 1)
+GET {{baseUrl}}/devs
+
+### GET /devs — personalizado (Fase 4, specs/fase-4-auth.md, "Descobertas" #8)
+# Seed real: marcelovilela tem 5 usernames unicos em `likes` (incluindo o proprio) e 0
+# `deslikes`. Esperado: 200, total: 35 (40 - 5), nenhum doc com user em
+# [marcelovilela, akitaonrails, devmedia, diego3g, filipedeschamps].
+# Gerar o token: ver specs/gerar-token-365-dias.md (payload {username: "marcelovilela"}).
+GET {{baseUrl}}/devs?page=1
+Authorization: Bearer {{authToken}}

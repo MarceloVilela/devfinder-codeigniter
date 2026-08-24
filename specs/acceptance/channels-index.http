@@ -1,0 +1,7 @@
+### GET /channels
+# Esperado: 200, corpo = array cru (ArrayOfChannel), sem envelope {docs,total,itemsPerPage}
+# — contrato atual nao pagina essa rota (ver "Descobertas" #4). Com o seed real
+# (specs/seed/omni8.channels.json, api/scripts/seed-local.ts): 186 channels — 189 no dump
+# original, 3 descartados por colisao de slug ("CaquiCoders" x4, ver specs/fase-3-v2.md,
+# achado #3 e decisao 1).
+GET {{baseUrl}}/channels

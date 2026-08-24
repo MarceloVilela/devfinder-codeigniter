@@ -23,6 +23,7 @@ $routes->group('v1', static function (RouteCollection $routes) {
     $routes->get('feed/trending', 'VideoController::trending', ['filter' => 'optionalAuth']);
     $routes->get('feed/channel', 'VideoController::byChannel');
     $routes->post('video', 'VideoController::store', ['filter' => 'requiredAuth']);
+    $routes->post('video/refresh', 'VideoController::refresh', ['filter' => 'requiredAuth']);
     $routes->get('video/(:segment)', 'VideoController::show/$1');
 
     $routes->get('description/feed', 'DescriptionController::feed');

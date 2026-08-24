@@ -1,17 +1,16 @@
-### video-refresh (comando `spark` agendado via cron, sem HTTP publico — ver plan.md Fase 6)
+### video:refresh (comando `spark` agendado via cron, sem HTTP publico — ver plan.md Fase 6)
 #
-# Nao e uma rota HTTP (Command CodeIgniter rodado por crontab na VM do deploy real, nao um
-# Controller) — testada via `php spark`, nao curl/REST Client. Fixture equivalente cobre os
-# mesmos 3 caminhos do VideoRefreshController original (ver ../../devfinder-api):
-#   1. video novo, canal resolvido por NOME (channel_url do candidato diverge do `link`
-#      salvo no Channel — caso real ja observado na versao ../serverless, ver
-#      ../../serverless/specs/fase-3-v2.md, achado #7 no registro de execucao) -> "added".
-#   2. video cuja URL ja existe -> "duplicated".
-#   3. canal que nao existe (nem por link nem por nome) -> "errors".
+# Nao e uma rota HTTP (Command CodeIgniter, App\Commands\VideoRefresh, rodado por crontab na
+# VM do deploy real, nao um Controller) — testado via `php spark`, nao curl/REST Client.
+# Diferente do plano original de fixture local: como as credenciais reais do bin
+# (videoRefresh.jsonbinApiKey/jsonbinIdSubs no .env, mesmo bin usado pelo devfinder-api
+# original) ja estavam disponiveis, o comando busca sempre do JSONBin.io real — sem flag de
+# fixture. O bin real cobre os mesmos 3 caminhos do VideoRefreshController original
+# (../../devfinder-api): video novo com canal resolvido, video cuja URL ja existe no seed
+# real (specs/seed/), candidato cujo canal nao resolve por nome nem link/alternative_link.
 #
-# Comando (nome do Command a definir na Fase 6, ex.):
-#   php spark video:refresh --fixture=tests/fixtures/video-refresh-fixture.json
+# Comando: docker compose exec app php spark video:refresh
 #
-# Esperado (stdout): `videoRefresh: candidatos=3 added=1 duplicated=1 errors=1`, seguido do
-# array de erros com `errorMessage` citando o canal inexistente. Depois de rodar,
-# `GET /video/NEWVIDEO001` (ver video-show.http) deve responder 200 com o video recem-criado.
+# Esperado (stdout): "JSONBin: N candidato(s) encontrado(s)." seguido de
+# "Adicionados: X | Ja existiam: Y | Erros: Z", e a lista de errorMessage de cada erro.
+# Ver specs/acceptance/execucao-fase-6.log para a saida real capturada.

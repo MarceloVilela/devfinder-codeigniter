@@ -49,6 +49,19 @@ etc.), não crie branch/commit/push/PR por conta própria — implementar até o
 trabalho autônomo normal, mas abrir o PR é uma ação visível pro GitHub que fica pra decisão
 humana, sempre. Avise que a fase está pronta e pergunte, não presuma.
 
+**Reproduzir o CI localmente antes de qualquer PR — não confiar só em rodar local com Docker
+Compose.** Achado real (PR #4, Fase 3): o job de CI (`.github/workflows/ci.yml`) setava
+`CI_ENVIRONMENT = testing` no `.env` gerado pra rodar `php spark migrate` + `phpunit` no mesmo
+job — quebrou o `migrate` com `Undefined constant SUPPORTPATH` (esse ambiente é reservado ao
+bootstrap do PHPUnit, não devia ir pro `.env` de um comando `spark` solto). O Docker Compose
+local nunca teria pego isso, porque o `.env` local nunca usa `CI_ENVIRONMENT=testing` — só o
+workflow do CI faz essa combinação específica. **Antes de abrir/pedir merge de um PR que toca
+`.github/workflows/`, `composer.json`/`.lock`, `.env`/`env`, ou qualquer coisa que o CI
+executa**: reproduzir os passos exatos do workflow localmente (container `php:8.3-cli` +
+MySQL de serviço numa rede Docker isolada, replicando `composer install` + `.env` gerado +
+`migrate` + `phpunit` linha por linha do `.yml`, não só confiar em "rodou local, deve rodar no
+CI"), *antes* de pedir pra abrir o PR — não depois de ver falhar no GitHub Actions.
+
 **PHPUnit/CIUnit é escopo da Fase 7, não das fases de endpoint (3, 5, 6).** Casos de aceite
 dessas fases são verificados rodando os `.http` de verdade (`npx httpyac send *.http --env
 local --all`, não `curl` solto nem alegação em prosa) e guardando a saída real como evidência

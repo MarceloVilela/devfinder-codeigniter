@@ -50,7 +50,11 @@ jobs:
       - name: Configure environment
         run: |
           cp env .env
-          sed -i "s/# CI_ENVIRONMENT = production/CI_ENVIRONMENT = testing/" .env
+          # "development", não "testing": ENVIRONMENT=testing é reservado ao bootstrap do
+          # PHPUnit (vendor/codeigniter4/framework/system/Test/bootstrap.php, que define
+          # SUPPORTPATH); setar via .env quebra `php spark migrate` com "Undefined constant
+          # SUPPORTPATH" — achado real, reproduzido no CI antes desta correção.
+          sed -i "s/# CI_ENVIRONMENT = production/CI_ENVIRONMENT = development/" .env
           {
             echo "database.default.hostname = 127.0.0.1"
             echo "database.default.database = devfinder"

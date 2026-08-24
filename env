@@ -1,3 +1,9 @@
+# ATENÇÃO: `env` (sem ponto) é o template padrão do CodeIgniter 4 (gerado pelo
+# `codeigniter4/appstarter`, não um arquivo deste projeto específico) — e é VERSIONADO.
+# Nunca coloque valor real aqui (secret, client id/secret, senha). Valores reais vão em
+# `.env` (com ponto, gitignored) ou `.env.example` (versionado, mas só com
+# placeholder/exemplo, nunca dado real).
+
 #--------------------------------------------------------------------
 # Example Environment Configuration file
 #

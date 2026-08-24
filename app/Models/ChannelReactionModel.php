@@ -23,4 +23,17 @@ class ChannelReactionModel extends Model
             'channel_id'
         ));
     }
+
+    /** Idempotente — ver DevReactionModel::add() para o raciocínio completo. */
+    public function add(int $devId, int $channelId, string $type): void
+    {
+        if ($this->where('dev_id', $devId)->where('channel_id', $channelId)->where('type', $type)->first() === null) {
+            $this->insert(['dev_id' => $devId, 'channel_id' => $channelId, 'type' => $type]);
+        }
+    }
+
+    public function remove(int $devId, int $channelId, string $type): void
+    {
+        $this->where('dev_id', $devId)->where('channel_id', $channelId)->where('type', $type)->delete();
+    }
 }

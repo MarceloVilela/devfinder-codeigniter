@@ -1,0 +1,110 @@
+Execução real dos 5 arquivos .http de escrita da Fase 5 contra http://localhost:8081 (Docker
+Compose local, banco recém-migrado + `AcceptanceSeeder`), via `npx httpyac send *.http --env
+local --var authToken=<jwt dev01> --all`. Gerado em 2026-08-24.
+
+Comando exato (após `DROP DATABASE` + `migrate --all` + `db:seed AcceptanceSeeder`, estado
+limpo):
+  cd specs/acceptance
+  npx --yes httpyac send devs-store.http channels-store.http video-store.http \
+    likes-dislikes-devs.http likes-dislikes-channels.http \
+    --env local --var authToken="<jwt de dev01, gerado com o auth.jwtSecret do .env>" --all -o short
+
+`--var authToken=...` sobrescreve só para esta rodada de evidência — não altera
+`http-client.private.env.json` (que fica com o token real do login OAuth, ver
+`fase-4-endpoints-auth.md`). Os testes de escrita precisam especificamente de `dev01`
+(fixture determinística — dev04/dev05/Canal Zeta são referenciados por nome).
+
+Resultado: 25/25 requests com o status esperado documentado em cada `.http`.
+
+=== POST /devs — sem token ===
+POST http://localhost:8081/v1/devs
+=> 401 (21 ms, 240 B)
+=== POST /devs — dev já existente (idempotente) ===
+POST http://localhost:8081/v1/devs
+=> 201 (20 ms, 687 B)
+=== POST /devs — dev novo, username real do GitHub ===
+POST http://localhost:8081/v1/devs
+=> 201 (300 ms, 623 B)
+=== POST /devs — username que não existe no GitHub (achado real) ===
+POST http://localhost:8081/v1/devs
+=> 500 (133 ms, 97.84 kB)
+=== POST /channels — canal novo, category com emoji ===
+POST http://localhost:8081/v1/channels
+=> 201 (47 ms, 695 B)
+=== POST /channels — mesmo nome, caminho de update ===
+POST http://localhost:8081/v1/channels
+=> 200 (57 ms, 720 B)
+=== POST /channels — com userGithub ===
+POST http://localhost:8081/v1/channels
+=> 201 (139 ms, 662 B)
+=== POST /video — canal desconhecido ===
+POST http://localhost:8081/v1/video
+=> 400 (9 ms, 610 B)
+=== POST /video — canal real, vídeo novo, sem thumbnail ===
+POST http://localhost:8081/v1/video
+=> 201 (53 ms, 722 B)
+=== POST /video — mesma url de novo ===
+POST http://localhost:8081/v1/video
+=> 409 (23 ms, 799 B)
+=== POST /likes/devs/{username} — alvo inexistente ===
+POST http://localhost:8081/v1/likes/devs/no-such-dev-zzz
+=> 400 (12 ms, 341 B)
+=== POST /likes/devs/{username} — alvo existente (dev04) ===
+POST http://localhost:8081/v1/likes/devs/dev04
+=> 200 (21 ms, 698 B)
+=== POST /likes/devs/{username} — auto-like (dev01 -> dev01) ===
+POST http://localhost:8081/v1/likes/devs/dev01
+=> 200 (12 ms, 698 B)
+=== GET /likes/devs ===
+GET http://localhost:8081/v1/likes/devs
+=> 200 (12 ms, 1.06 kB)
+=== DELETE /likes/devs/{username} — remove o like ===
+DELETE http://localhost:8081/v1/likes/devs/dev04
+=> 200 (44 ms, 687 B)
+=== POST /dislikes/devs/{username} — alvo inexistente ===
+POST http://localhost:8081/v1/dislikes/devs/no-such-dev-zzz
+=> 400 (19 ms, 341 B)
+=== POST /dislikes/devs/{username} — alvo existente (dev05) ===
+POST http://localhost:8081/v1/dislikes/devs/dev05
+=> 200 (34 ms, 698 B)
+=== GET /dislikes/devs ===
+GET http://localhost:8081/v1/dislikes/devs
+=> 200 (16 ms, 1.03 kB)
+=== DELETE /dislikes/devs/{username} — remove o dislike ===
+DELETE http://localhost:8081/v1/dislikes/devs/dev05
+=> 200 (24 ms, 687 B)
+=== POST /likes/channels/{name} — alvo inexistente ===
+POST http://localhost:8081/v1/likes/channels/no-such-channel-zzz
+=> 400 (10 ms, 345 B)
+=== POST /likes/channels/{name} — follow (Canal Zeta) ===
+POST http://localhost:8081/v1/likes/channels/Canal%20Zeta
+=> 200 (20 ms, 698 B)
+=== DELETE /likes/channels/{name} — unfollow ===
+DELETE http://localhost:8081/v1/likes/channels/Canal%20Zeta
+=> 200 (33 ms, 687 B)
+=== POST /dislikes/channels/{name} — alvo inexistente ===
+POST http://localhost:8081/v1/dislikes/channels/no-such-channel-zzz
+=> 400 (14 ms, 345 B)
+=== POST /dislikes/channels/{name} — ignore (Canal Zeta) ===
+POST http://localhost:8081/v1/dislikes/channels/Canal%20Zeta
+=> 200 (98 ms, 698 B)
+=== DELETE /dislikes/channels/{name} — un-ignore ===
+DELETE http://localhost:8081/v1/dislikes/channels/Canal%20Zeta
+=> 200 (31 ms, 687 B)
+
+=== Bugs reais encontrados e corrigidos durante esta execução ===
+
+1. `*/g` dentro de um comentário PHPDoc (`VideoModel::stripTrackingParam`) fechava o bloco
+   `/** */` cedo — `php -l` confirmou erro de sintaxe real. Corrigido reescrevendo o
+   comentário sem a sequência `*/` literal no meio do texto.
+2. `DevModel::findOrCreate` com um username sem `avatar_url` real no GitHub: `insert()`
+   falha validação (`avatar` obrigatório), devolve `false`; `$this->find(false)` do CI4
+   devolve TODOS os registros da tabela, não nenhum — reproduzido e confirmado via comando
+   `spark` isolado. Corrigido com guarda explícita (lança `RuntimeException` em vez de
+   deixar isso silencioso).
+3. `is_unique[...,id,{id}]` no `update()`: o placeholder `{id}` só resolve a partir do
+   *array de dados* passado pro `update()`, não do primeiro argumento (`$id`) — sem `'id' =>
+   $id` explícito nos dados, a checagem de unicidade sempre rejeita a própria linha como
+   "duplicata". Além disso, incluir `'id'` nos dados sem uma regra de validação própria pra
+   esse campo lança `LogicException` em runtime (guarda de segurança do próprio CI4).
+   Corrigido nos 3 Models que usam esse padrão (`Channel`, `Dev`, `Video`).

@@ -1,31 +1,54 @@
-### POST /channels — canal novo, category com emoji e espacos nas pontas
-# Esperado: 201. GET /channels/{slug} depois confirma category = "Design" (trim + strip de
-# emoji, achado #14) e slug = "canal-teste-fase-5" (derivado de "title").
+### POST /channels — canal novo, category com emoji (achado: emoji removido, espaço mantido)
+# Confirmado: 201. `category` volta como "Fase5 Design " (emoji `🎨` removido — tradução
+# fiel do regex JS original pro PCRE, ver `strip_channel_emoji()`; o espaço à direita NÃO é
+# cortado — o original também não faz `trim()`, só remove o emoji).
+#
+# Nota de repetibilidade: rodar este arquivo duas vezes seguidas SEM recriar o banco faz este
+# primeiro caso cair no caminho de update (200, não 201) — comportamento correto de dedup por
+# "contém" (`findForStoreDedup`), não um bug; o segundo caso abaixo testa exatamente esse
+# caminho de propósito.
 POST {{baseUrl}}/channels
 Authorization: Bearer {{authToken}}
 Content-Type: application/json
 
 {
-  "link": "https://www.youtube.com/channel/UCTESTFASE5",
-  "title": "Canal Teste Fase 5",
-  "description": "desc",
-  "tags": ["test"],
-  "category": " 🎨 Design "
+  "link": "https://www.youtube.com/channel/UCFASE5TEST",
+  "title": "Canal Fase5 Teste",
+  "description": "desc original",
+  "tags": ["fase5"],
+  "category": "Fase5 Design 🎨"
 }
 
-### POST /channels — mesmo link, caminho de update
-# Esperado: 201 (nao 200 — paridade com ChannelController.store original, decisao #3 de
-# specs/fase-5-escrita-relacionamentos.md), slug inalterado (mesmo "canal-teste-fase-5"),
-# name/description/tags atualizados. Sem o `Dev.create` acessorio quebrado do original
-# (achado #4) — nenhum efeito colateral em Dev.
+### POST /channels — mesmo nome (dedup por "contém"), caminho de update
+# Confirmado: 200 (não 201 — paridade exata com `ChannelController.store` original: a
+# resposta de update é `res.json(channelUpdated)` sem status explícito, Express usa 200 por
+# padrão). `tags` totalmente substituídas (não mescladas — mesma semântica de sobrescrever o
+# array inteiro do Mongoose original).
 POST {{baseUrl}}/channels
 Authorization: Bearer {{authToken}}
 Content-Type: application/json
 
 {
-  "link": "https://www.youtube.com/channel/UCTESTFASE5",
-  "title": "Canal Teste Fase 5 Updated",
-  "description": "desc2",
-  "tags": ["test", "updated"],
-  "category": "Design"
+  "link": "https://www.youtube.com/channel/UCFASE5TEST",
+  "title": "Canal Fase5 Teste",
+  "description": "desc atualizada",
+  "tags": ["fase5", "atualizado"],
+  "category": "Categoria Nova"
+}
+
+### POST /channels — com userGithub (cria/reaproveita o Dev associado)
+# Confirmado: 201, `userGithub: "octocat"`. Divergência deliberada do original (ver
+# fase-5-escrita-relacionamentos.md): usa `DevModel::findOrCreate` em vez de `Dev.create` sem
+# `username` (bug real do original — campo obrigatório ausente na chamada) — idempotente,
+# não cria um Dev duplicado se `octocat` já existir (testável rodando `devs-store.http`
+# antes deste caso).
+POST {{baseUrl}}/channels
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "link": "https://www.youtube.com/channel/UCFASE5TEST2",
+  "title": "Canal Fase5 Com Dev",
+  "category": "Tech",
+  "userGithub": "octocat"
 }

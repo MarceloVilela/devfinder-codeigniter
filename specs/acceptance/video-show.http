@@ -1,9 +1,10 @@
-### GET /video/{idYoutubeWatch} — encontrado (dado real, specs/seed/omni8.videos.json)
-# Esperado: 200, corpo = Video serializado (_id=videoId, title, url, channel_id=channelSlug,
-# channel, channel_url, thumbnail, viewnum, date, createdAt, updatedAt).
-GET {{baseUrl}}/video/up0im04clS8
+### GET /video/{idYoutubeWatch} — encontrado (fixture sintética, ver AcceptanceVideoSeeder)
+# Esperado: 200, corpo = Video serializado. `_id` é o id numérico do vídeo; `channel_id` é o
+# id numérico do canal (não um slug — mesma decisão de `channels._id`, ver
+# specs/fase-1-data-model.md). `channel`/`channel_url` reconstruídos via JOIN com `channels`
+# (não são coluna própria — Fase 1 já tinha decidido isso, confirmado aqui na implementação).
+GET {{baseUrl}}/video/vidalpha01
 
-### GET /video/{idYoutubeWatch} — nao encontrado
-# Esperado: 200 (nao 404) + corpo `null` — paridade com Video.findOne do Mongo original
-# (ver specs/fase-3-endpoints-leitura.md, "Descobertas" #3).
+### GET /video/{idYoutubeWatch} — não encontrado
+# Esperado: 200 (não 404) + corpo `null` — paridade com `Video.findOne` do Mongo original.
 GET {{baseUrl}}/video/does-not-exist

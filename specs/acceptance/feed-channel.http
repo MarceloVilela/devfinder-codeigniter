@@ -1,15 +1,15 @@
-### GET /feed/channel?channel_name= — page 1 (canal real com 41 videos, > 1 pagina)
-# Esperado: 200, {docs, total: 41, itemsPerPage: 30}, docs.length = 30.
-GET {{baseUrl}}/feed/channel?channel_name=Cássio Batista Pereira&page=1
+### GET /feed/channel?channel_name= — page 1 (Canal Beta, 35 vídeos > 1 página)
+# Esperado: 200, {docs, total: 35, itemsPerPage: 30}, docs.length = 30.
+GET {{baseUrl}}/feed/channel?channel_name=Canal%20Beta&page=1
 
-### GET /feed/channel?channel_name= — page 2 (resto: 41 - 30 = 11)
-GET {{baseUrl}}/feed/channel?channel_name=Cássio Batista Pereira&page=2
+### GET /feed/channel?channel_name= — page 2 (resto: 35 - 30 = 5)
+GET {{baseUrl}}/feed/channel?channel_name=Canal%20Beta&page=2
 
-### GET /feed/channel?channel_name= — canal com 1 pagina so (Zurubabel, 4 videos)
-GET {{baseUrl}}/feed/channel?channel_name=Zurubabel
+### GET /feed/channel?channel_name= — canal com 1 página só (Canal Alpha, 20 vídeos)
+GET {{baseUrl}}/feed/channel?channel_name=Canal%20Alpha
 
 ### GET /feed/channel?channel_name= — canal inexistente
-# Esperado: 200, {docs: [], total: 0, itemsPerPage: 30} — nao propaga erro (diferente do
-# VideoController.index original, que quebraria com `channel.link` de um `null`; nao e
-# comportamento a preservar, ver src/functions/video/byChannel.ts).
+# Esperado: 200, {docs: [], total: 0, itemsPerPage: 30} — não propaga erro (diferente do
+# `VideoController.index` original, que quebraria tentando ler `channel.link` de `null`; não
+# é comportamento a preservar).
 GET {{baseUrl}}/feed/channel?channel_name=NaoExiste

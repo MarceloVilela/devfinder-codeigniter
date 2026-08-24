@@ -1,6 +1,11 @@
 ### GET /description/feed
-# Esperado: 200, Content-Type text/html, corpo = texto com quebras `<br />` listando os
-# canais dos videos de feed/trending?page=1 e hashtags derivadas das tags desses canais.
-# Fonte de dados: repositorios (listAllChannels + listTrending(1)) direto, sem HTTP
-# self-call — decisao 3 de specs/fase-3-endpoints-leitura.md.
+# Esperado: 200, Content-Type text/html, corpo = texto puro (sem decoração de dev tool —
+# achado real: o CI4 Debug Toolbar injetava <script> no corpo de toda resposta text/html,
+# corrompendo esse contrato; excluído via app/Config/Filters.php `except: ['v1/description/*']`)
+# com quebras `<br />` listando os canais dos vídeos de `feed/trending?page=1` e hashtags
+# derivadas das tags desses canais. Fonte de dados: Models direto (`ChannelModel`,
+# `VideoModel`), sem HTTP self-call — o Node original faz `axios.get` pra própria API,
+# desnecessário num monolito.
+# Com a fixture sintética da Fase 3, a página 1 do trending é só "Canal Beta" (35 vídeos mais
+# recentes que os 20 de Alpha) — corpo esperado cita só "Canal Beta" e a hashtag "#react".
 GET {{baseUrl}}/description/feed

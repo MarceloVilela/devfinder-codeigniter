@@ -1,14 +1,22 @@
 ### GET /channels/{searchQuery} — encontrado por nome
-# Esperado: 200, corpo = Channel serializado (_id=slug — precisa ser o slug, nao um id
-# aleatorio: devfinder-next compara `user.follow.includes(channel._id)`, e `Dev.follow`
-# guarda slugs, ver specs/fase-3-endpoints-leitura.md, "Registro de execucao").
-GET {{baseUrl}}/channels/Rocketseat
+# Esperado: 200, corpo = Channel serializado. `_id` é o id numérico (BIGINT), NÃO um slug —
+# confirmado lendo `devfinder-next/src/pages/channel/[slug].tsx`: `search_query` vem sempre
+# de `router.query.slug`, que por sua vez vem de um link montado com `channel.name` — o
+# frontend nunca chama esta rota com um link, só com o nome exato já conhecido.
+GET {{baseUrl}}/channels/Canal%20Alpha
 
-### GET /channels/{searchQuery} — nao encontrado
-# Esperado: 200 (nao 404) + corpo `null`.
+### GET /channels/{searchQuery} — não encontrado
+# Esperado: 200 (não 404) + corpo `null`.
 GET {{baseUrl}}/channels/nao-existe
 
-### GET /channels/{searchQuery} — busca por link (mudanca intencional vs. Mongo original)
-# Esperado: 200 + corpo `null` — Fase 1 decidiu que so lookup exato por slug (derivado do
-# name) e suportado; um link nao bate slug nenhum. Ver "Descobertas" #6.
-GET {{baseUrl}}/channels/https%3A%2F%2Fyoutube.com%2Fsome-link
+### Busca por link — funciona na query SQL, mas não é exercitável via este path
+# `ChannelModel::findByNameOrLink()` casa por `name` OU `link` OU `alternative_link` (ver
+# specs/fase-1-data-model.md, decisão 2) — a query em si suporta link. O que NÃO funciona é
+# passar um link inteiro (com `/`) como segmento de path, mesmo url-encoded (`%2F`): achado
+# real rodando de verdade — o CI4 4.7 decodifica o path e o Router reparte por `/` ANTES do
+# regex de rota rodar, então `%2F` vira segmento novo (perdido), não sobrevive como parte de
+# um único parâmetro. Isso não é um bug do projeto, é uma diferença de plataforma vs. o
+# Express original (que decodifica só depois de capturar o parâmetro) — e não importa na
+# prática porque o frontend real nunca chama esta rota com um link (ver caso acima). Se algum
+# dia precisar buscar por link de verdade, o jeito correto é `?link=` como query string, não
+# path — não implementado porque não há uso real hoje.

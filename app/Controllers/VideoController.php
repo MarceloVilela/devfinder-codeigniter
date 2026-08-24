@@ -3,22 +3,51 @@
 namespace App\Controllers;
 
 use App\Models\ChannelModel;
+use App\Models\ChannelReactionModel;
+use App\Models\DevModel;
 use App\Models\VideoModel;
 
 class VideoController extends BaseController
 {
     private VideoModel $videos;
     private ChannelModel $channels;
+    private ChannelReactionModel $channelReactions;
+    private DevModel $devs;
 
     public function __construct()
     {
-        $this->videos   = model(VideoModel::class);
-        $this->channels = model(ChannelModel::class);
+        $this->videos           = model(VideoModel::class);
+        $this->channels         = model(ChannelModel::class);
+        $this->channelReactions = model(ChannelReactionModel::class);
+        $this->devs             = model(DevModel::class);
     }
 
     public function trending()
     {
         $model = $this->videos->trendingQuery();
+
+        // Personalização (Fase 4): autenticado (JWT) OU `?user=<username>` — paridade com
+        // TrendingController.index original, que aceita os dois como formas de identificar
+        // o Dev (o segundo não é autenticação, é identificação explícita sem token; decisão
+        // de preservar já tomada em ../../serverless/specs/fase-4-auth.md, achado #9).
+        $auth = service('authContext');
+        $userIdentifier = $this->request->getGet('user');
+
+        $devId = null;
+        if ($auth->isAuthenticated()) {
+            $devId = $auth->devId();
+        } elseif ($userIdentifier) {
+            $dev = $this->devs->findByUsername((string) $userIdentifier);
+            $devId = $dev !== null ? (int) $dev['id'] : null;
+        }
+
+        if ($devId !== null) {
+            $ignoredChannelIds = $this->channelReactions->targetIdsFor($devId, 'ignore');
+            if ($ignoredChannelIds !== []) {
+                $model->whereNotIn('videos.channel_id', $ignoredChannelIds);
+            }
+        }
+
         $rows  = $model->paginate(30);
 
         return $this->response->setJSON([

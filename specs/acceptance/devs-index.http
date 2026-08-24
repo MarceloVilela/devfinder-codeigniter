@@ -9,9 +9,18 @@ GET {{baseUrl}}/devs?page=2
 ### GET /devs — sem page (default = 1, mesmo resultado do primeiro caso)
 GET {{baseUrl}}/devs
 
-### GET /devs — personalizado (auth) — ainda não executável
-# A partir da Fase 4 (JWT/Filters), autenticado deve excluir o próprio Dev + quem já foi
-# curtido/descurtido (equivalente ao `$nin` do Mongo original — ver
-# specs/fase-1-data-model.md, "Cobertura: padrão de acesso por operação").
-# GET {{baseUrl}}/devs?page=1
-# Authorization: Bearer {{authToken}}
+### GET /devs — personalizado (auth, Fase 4)
+# `{{authToken}}` hoje é um token real (login de verdade no GitHub, ver
+# fase-4-endpoints-auth.md, "Verificação humana") — não o `dev01` sintético. `marcelovilela`
+# não tem like/dislike (dev sem reações), então só exclui a si mesmo: total 35 (36 devs no
+# banco — 35 da fixture + marcelovilela — menos o próprio autenticado).
+# Pra testar exclusão de likes/dislikes de verdade (equivalente ao `$nin` do Mongo original),
+# trocar `authToken` por um token de `dev01` (tem like em dev02, dislike em dev03,
+# AcceptanceReactionSeeder) — nesse caso o total esperado é 32.
+GET {{baseUrl}}/devs?page=1
+Authorization: Bearer {{authToken}}
+
+### GET /devs — token inválido em rota opcional (não deve bloquear)
+# Confirmado: 200 (não 401), total: 35 — comportamento anônimo, `optionalAuth` nunca nega.
+GET {{baseUrl}}/devs?page=1
+Authorization: Bearer garbage.invalid.token

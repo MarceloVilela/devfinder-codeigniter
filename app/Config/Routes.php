@@ -8,7 +8,7 @@ $routes->get('/', 'Home::index');
 $routes->group('v1', static function (RouteCollection $routes) {
     $routes->get('/', 'Home::index');
 
-    $routes->get('devs', 'DevController::index');
+    $routes->get('devs', 'DevController::index', ['filter' => 'optionalAuth']);
     $routes->get('devs/(:segment)', 'DevController::show/$1');
 
     $routes->get('channels', 'ChannelController::index');
@@ -18,10 +18,15 @@ $routes->group('v1', static function (RouteCollection $routes) {
     // pra não mudar o comportamento de todas as outras rotas).
     $routes->get('channels/(.*)', 'ChannelController::show/$1');
 
-    $routes->get('feed/trending', 'VideoController::trending');
+    $routes->get('feed/trending', 'VideoController::trending', ['filter' => 'optionalAuth']);
     $routes->get('feed/channel', 'VideoController::byChannel');
     $routes->get('video/(:segment)', 'VideoController::show/$1');
 
     $routes->get('description/feed', 'DescriptionController::feed');
     $routes->get('description/category', 'DescriptionController::category');
+
+    $routes->get('auth/github', 'AuthController::github');
+    $routes->get('auth/github/callback', 'AuthController::callback');
+
+    $routes->get('me', 'MeController::show', ['filter' => 'requiredAuth']);
 });

@@ -19,7 +19,17 @@ GET {{baseUrl}}/feed/trending?page=2
 # válida é um comportamento defensável (arguavelmente melhor que uma tela vazia).
 GET {{baseUrl}}/feed/trending?page=99
 
-### GET /feed/trending — personalizado (auth) — ainda não executável
-# A partir da Fase 4: com `?user=` ou Bearer token, exclui vídeos de canais que o Dev
-# autenticado ignora (equivalente a `channel_id NOT IN (...)`).
-# GET {{baseUrl}}/feed/trending?page=1&user=dev01
+### GET /feed/trending — personalizado via `?user=` (Fase 4)
+# Confirmado: 200, total: 20 — `dev01` ignora "Canal Beta" (35 vídeos, AcceptanceReactionSeeder),
+# sobram só os 20 de "Canal Alpha". `?user=` não é autenticação, é identificação explícita
+# sem token — preservado por paridade com `TrendingController.index` original (achado #9 de
+# `../../../serverless/specs/fase-4-auth.md`, recomendação já confirmada aqui).
+GET {{baseUrl}}/feed/trending?page=1&user=dev01
+
+### GET /feed/trending — personalizado via Bearer token
+# `{{authToken}}` hoje é um token real (login de verdade no GitHub, não o `dev01` sintético
+# do caso acima) — `marcelovilela` não ignora nenhum canal, então o resultado é igual ao
+# anônimo: total 55, não 20. Pra reproduzir o caso equivalente ao `?user=dev01` acima, trocar
+# `authToken` por um token de `dev01` (ignora "Canal Beta", AcceptanceReactionSeeder).
+GET {{baseUrl}}/feed/trending?page=1
+Authorization: Bearer {{authToken}}

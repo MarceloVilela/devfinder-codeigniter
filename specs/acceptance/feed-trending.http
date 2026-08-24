@@ -1,26 +1,25 @@
-### GET /feed/trending — page 1 (dado real: specs/seed/omni8.videos.json, 500 videos)
-# Esperado: 200, corpo {docs, total: 500, itemsPerPage: 30}, docs.length = 30, ordenado por
-# createdAt desc (video mais recente primeiro).
+### GET /feed/trending — page 1 (fixture sintética: 55 vídeos, ver AcceptanceVideoSeeder)
+# Esperado: 200, corpo {docs, total: 55, itemsPerPage: 30}, docs.length = 30, ordenado por
+# created_at DESC. Os 20 vídeos de "Canal Alpha" foram inseridos antes dos 35 de "Canal
+# Beta" — então a página 1 inteira (30 itens) é só Beta (mais recentes).
 GET {{baseUrl}}/feed/trending?page=1
 
-### GET /feed/trending — ultima pagina parcial (500 = 16*30 + 20 -> page 17 tem 20 itens)
-# Aqui e um `LIMIT/OFFSET` direto do MySQL (nao um cursor sequencial como na versao
-# ../serverless, que precisa de O(page) leituras no DynamoDB) — mantido como caso de aceite
-# porque ainda exercita paginacao real perto do fim dos dados, nao so um numero pequeno.
-GET {{baseUrl}}/feed/trending?page=17
+### GET /feed/trending — page 2 (resto: 55 - 30 = 25 — 5 de Beta + 20 de Alpha)
+GET {{baseUrl}}/feed/trending?page=2
 
-### GET /feed/trending — page alem do fim
-# Esperado: 200, docs = [], total = 500 (nao um erro).
+### GET /feed/trending — page além do fim
+# Esperado real (achado rodando de verdade, diferente da suposição original de "docs vazio"):
+# o `Pager` nativo do CI4 faz *clamp* pra última página válida — `?page=99` devolve os
+# MESMOS 25 docs da página 2, não um array vazio (`total` continua correto: 55). Comportamento
+# documentado desde o CHANGELOG 4.0.3 do framework, não é bug. Decisão desta fase: manter o
+# comportamento nativo do Pager (prioridade "seguir os padrões do CodeIgniter") em vez de
+# reimplementar LIMIT/OFFSET manual só pra replicar o Mongo — a UI real
+# (`devfinder-next/src/components/Paginate`) nunca constrói link pra uma página além do total
+# calculado, então esse caso só existe pra edição manual de URL, e devolver a última página
+# válida é um comportamento defensável (arguavelmente melhor que uma tela vazia).
 GET {{baseUrl}}/feed/trending?page=99
 
-### GET /feed/trending — personalizado via ?user= (Fase 4, specs/fase-4-auth.md)
-# Seed real: marcelovilela tem 6 canais em `ignore`. Esperado: 200, total: 450 (500 - 50
-# videos desses canais), nenhum doc com channel_id em
-# [attekita-dev, curso-em-video, gregory-pacheco, nicbrvideos, portal-hugo-cursos, programador-br].
-GET {{baseUrl}}/feed/trending?page=1&user=marcelovilela
-
-### GET /feed/trending — personalizado via Bearer token (equivalente ao ?user= acima)
-# Gerar o token: ver specs/gerar-token-365-dias.md ou specs/acceptance/me.http.
-# Esperado: mesmo resultado do caso acima (total: 450).
-GET {{baseUrl}}/feed/trending?page=1
-Authorization: Bearer {{authToken}}
+### GET /feed/trending — personalizado (auth) — ainda não executável
+# A partir da Fase 4: com `?user=` ou Bearer token, exclui vídeos de canais que o Dev
+# autenticado ignora (equivalente a `channel_id NOT IN (...)`).
+# GET {{baseUrl}}/feed/trending?page=1&user=dev01

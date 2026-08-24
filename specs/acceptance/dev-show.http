@@ -1,9 +1,12 @@
-### GET /devs/{username} — encontrado
-# Esperado: 200, corpo = Dev serializado (_id=username, user=username, name, bio, avatar,
-# likes/deslikes/follow/ignore como array — nao Set —, createdAt, updatedAt).
-GET {{baseUrl}}/devs/marcelovilela
+### GET /devs/{username} — encontrado (fixture sintética, ver AcceptanceReactionSeeder)
+# Esperado: 200, corpo = Dev serializado. `_id` é o id numérico (BIGINT auto_increment),
+# NÃO o username — diferente do design DynamoDB do projeto irmão, que usa slug/username como
+# chave (ver specs/fase-1-data-model.md, "Mapeamento de nomes na resposta pública": MySQL tem
+# PK numérica nativa, mais simples que inventar um slug). `user` = username. `likes`/
+# `deslikes`/`follow`/`ignore` = arrays de ids inteiros (dev01 tem 1 like, 1 deslike, 1
+# follow, 1 ignore, ver AcceptanceReactionSeeder).
+GET {{baseUrl}}/devs/dev01
 
-### GET /devs/{username} — nao encontrado
-# Esperado: 200 (nao 404) + corpo `null` — paridade com Dev.findOne do Mongo original
-# (ver specs/fase-3-endpoints-leitura.md, "Descobertas" #3).
+### GET /devs/{username} — não encontrado
+# Esperado: 200 (não 404) + corpo `null` — paridade com `Dev.findOne` do Mongo original.
 GET {{baseUrl}}/devs/nobody

@@ -57,7 +57,6 @@ class Filters extends BaseFilters
         'after' => [
             'pagecache',   // Web Page Caching
             'performance', // Performance Metrics
-            'toolbar',     // Debug Toolbar
         ],
     ];
 
@@ -77,8 +76,11 @@ class Filters extends BaseFilters
             // 'invalidchars',
         ],
         'after' => [
-            // 'honeypot',
-            // 'secureheaders',
+            // Movido de $required: description/feed e description/category devolvem
+            // text/html "cru" (texto pra colar em descrição de vídeo do YouTube) — o
+            // Toolbar injeta <script> no corpo de toda resposta text/html, o que corrompe
+            // esse contrato. Achado real rodando de verdade, não previsto em nenhuma doc.
+            'toolbar' => ['except' => ['v1/description/*']],
         ],
     ];
 

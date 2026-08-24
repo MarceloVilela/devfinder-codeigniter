@@ -670,6 +670,18 @@ components:
           items: { type: string }
           example: [javascript, react, react native]
         category: { type: string, example: "Desenvolvimento Front-End " }
+        userGithub:
+          type: string
+          example: rocketseat
+          description: >
+            Correção de spec (Fase 5): ausente no schema original herdado do swagger, mas
+            `ChannelController.store` (devfinder-api) sempre aceitou e usou este campo — cria/
+            reaproveita o Dev associado via GitHub. Achado durante a implementação; corrigido
+            aqui, não no código, por instrução do próprio cabeçalho deste arquivo ("qualquer
+            discrepância encontrada durante a implementação deve ser corrigida aqui primeiro").
+        avatar:
+          type: string
+          description: Mesma correção — aceito pelo controller original, ausente do schema.
 
     ArrayOfChannelName:
       type: array

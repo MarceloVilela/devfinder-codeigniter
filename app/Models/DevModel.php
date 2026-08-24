@@ -14,6 +14,9 @@ class DevModel extends Model
     protected $returnType    = 'array';
 
     protected $validationRules = [
+        // 'id' com regra própria — sem isso o placeholder {id} do is_unique quebra em
+        // runtime numa futura chamada a update() (achado real, ver ChannelModel).
+        'id'       => 'permit_empty|is_natural_no_zero',
         'username' => 'required|is_unique[devs.username,id,{id}]',
         'name'     => 'required',
         'avatar'   => 'required',
@@ -63,6 +66,19 @@ class DevModel extends Model
             'bio'      => $bio,
             'avatar'   => $avatar,
         ]);
+
+        // Achado real (não hipotético — reproduzido testando com um username inexistente no
+        // GitHub): se `$id` for `false` (falha de validação, ex. `avatar` continua vazio
+        // porque o fallback público do GitHub devolveu 404), `$this->find(false)` do CI4
+        // devolve TODOS os registros da tabela, não nenhum — `find()` só trata `null` como
+        // "sem filtro"; qualquer outro valor falsy ainda tenta um `WHERE id = false`, que o
+        // driver aparentemente não filtra do jeito esperado. Guarda explícita: nunca deixar
+        // `$id` falsy chegar em `find()`.
+        if ($id === false) {
+            throw new \RuntimeException(
+                'DevModel::findOrCreate falhou: ' . implode(' ', $this->errors())
+            );
+        }
 
         return $this->find($id);
     }

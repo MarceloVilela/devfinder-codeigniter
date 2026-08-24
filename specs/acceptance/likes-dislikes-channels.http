@@ -1,31 +1,32 @@
-### POST /likes/channels/{username} — alvo inexistente
-# Esperado: 400, {"error":"Channel not exists"}. `username` aqui e sempre um channel.name
-# (achado #3 de specs/fase-5-escrita-relacionamentos.md), resolvido via slugify.
+### POST /likes/channels/{name} — alvo inexistente
+# Confirmado: 400, {"error":"Channel not exists"}. `name` aqui é sempre `channels.name`
+# exato — mesmo critério de `Channel.findOne({name: username})` do `FollowController`
+# original (não usa link, diferente de `GET /channels/{searchQuery}`).
 POST {{baseUrl}}/likes/channels/no-such-channel-zzz
 Authorization: Bearer {{authToken}}
 
-### POST /likes/channels/{username} — follow de um canal real do seed
-# Esperado: 200, Dev autenticado com "rocketseat" (slug) em follow.
-POST {{baseUrl}}/likes/channels/Rocketseat
+### POST /likes/channels/{name} — follow de um canal real da fixture (Canal Zeta)
+# Confirmado: 200, Dev autenticado com o id de "Canal Zeta" em `follow`.
+POST {{baseUrl}}/likes/channels/Canal%20Zeta
 Authorization: Bearer {{authToken}}
 
-### DELETE /likes/channels/{username} — unfollow
-# Esperado: 200, Dev autenticado sem "rocketseat" em follow (idempotente).
-DELETE {{baseUrl}}/likes/channels/Rocketseat
+### DELETE /likes/channels/{name} — unfollow
+# Confirmado: 200, Dev autenticado sem "Canal Zeta" em `follow` (idempotente).
+DELETE {{baseUrl}}/likes/channels/Canal%20Zeta
 Authorization: Bearer {{authToken}}
 
-### POST /dislikes/channels/{username} — alvo inexistente
-# Esperado: 400, {"error":"Channel not exists"}.
+### POST /dislikes/channels/{name} — alvo inexistente
+# Confirmado: 400, {"error":"Channel not exists"}.
 POST {{baseUrl}}/dislikes/channels/no-such-channel-zzz
 Authorization: Bearer {{authToken}}
 
-### POST /dislikes/channels/{username} — ignore de um canal real do seed
-# Esperado: 200, Dev autenticado com "201-front-end" (slug) em ignore. Nome com hifen
-# ("201 Front-End") testa o slugify por completo, nao so espacos.
-POST {{baseUrl}}/dislikes/channels/201%20Front-End
+### POST /dislikes/channels/{name} — ignore de um canal real da fixture (Canal Zeta)
+# Confirmado: 200, Dev autenticado com o id de "Canal Zeta" em `ignore`. Nome com espaço
+# (não com hífen — nossa fixture usa "Canal Zeta", não um slug) testa o path com `%20`.
+POST {{baseUrl}}/dislikes/channels/Canal%20Zeta
 Authorization: Bearer {{authToken}}
 
-### DELETE /dislikes/channels/{username} — un-ignore
-# Esperado: 200, Dev autenticado sem "201-front-end" em ignore.
-DELETE {{baseUrl}}/dislikes/channels/201%20Front-End
+### DELETE /dislikes/channels/{name} — un-ignore
+# Confirmado: 200, Dev autenticado sem "Canal Zeta" em `ignore`.
+DELETE {{baseUrl}}/dislikes/channels/Canal%20Zeta
 Authorization: Bearer {{authToken}}

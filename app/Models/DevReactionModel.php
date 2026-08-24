@@ -25,4 +25,27 @@ class DevReactionModel extends Model
             'target_dev_id'
         ));
     }
+
+    /**
+     * Adiciona a reação se ainda não existir — idempotente (like duas vezes não duplica
+     * linha nem estoura erro de unicidade), paridade com o `if (!includes) push+save` do
+     * `LikeController`/`DislikeController` original. Auto-reação (dev_id === target) vira
+     * no-op silencioso: a `CHECK` constraint da Fase 1 proíbe estruturalmente, e o original
+     * nunca tinha essa proteção nem um fluxo real que gerasse esse caso.
+     */
+    public function add(int $devId, int $targetDevId, string $type): void
+    {
+        if ($devId === $targetDevId) {
+            return;
+        }
+
+        if ($this->where('dev_id', $devId)->where('target_dev_id', $targetDevId)->where('type', $type)->first() === null) {
+            $this->insert(['dev_id' => $devId, 'target_dev_id' => $targetDevId, 'type' => $type]);
+        }
+    }
+
+    public function remove(int $devId, int $targetDevId, string $type): void
+    {
+        $this->where('dev_id', $devId)->where('target_dev_id', $targetDevId)->where('type', $type)->delete();
+    }
 }

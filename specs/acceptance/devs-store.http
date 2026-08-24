@@ -1,24 +1,38 @@
 ### POST /devs — sem token
-# Esperado: 401 (requiredAuthorizer).
+# Confirmado: 401, {"error":"Token not provided."}.
 POST {{baseUrl}}/devs
 Content-Type: application/json
 
-{ "username": "marcelovilela" }
+{ "username": "dev01" }
 
-### POST /devs — dev ja existente (idempotente)
-# Esperado: 201, corpo do Dev ja existente (findOrCreateDev nao sobrescreve, ver
-# services/findOrCreateDev.ts) — nao e erro repetir.
+### POST /devs — dev já existente (idempotente)
+# Confirmado: 201 (sempre 201, mesmo já existindo — paridade com `DevController.store`
+# original: `findOrCreateDev` não distingue os dois casos na resposta, sempre `res.status(201)`).
 POST {{baseUrl}}/devs
 Authorization: Bearer {{authToken}}
 Content-Type: application/json
 
-{ "username": "marcelovilela" }
+{ "username": "dev01" }
 
-### POST /devs — dev novo (username real do GitHub, profile publico completa nome/bio/avatar)
-# Esperado: 201, name/avatar preenchidos a partir do profile publico do GitHub (bio pode vir
-# vazia se o usuario nao tiver bio publica).
+### POST /devs — dev novo, username real do GitHub (profile público completa nome/bio/avatar)
+# Confirmado: 201, `name`/`avatar` preenchidos a partir do profile público real do GitHub
+# (`octocat` — conta clássica de teste do próprio GitHub, sempre existe).
 POST {{baseUrl}}/devs
 Authorization: Bearer {{authToken}}
 Content-Type: application/json
 
 { "username": "octocat" }
+
+### POST /devs — username que não existe no GitHub (achado real desta fase)
+# Esperado: 500 — `DevModel::findOrCreate` lança `RuntimeException` explícita (achado real:
+# sem essa guarda, `avatar` fica vazio, a validação `required` falha, `insert()` devolve
+# `false`, e `$this->find(false)` do CI4 devolve TODOS os registros da tabela em vez de
+# nenhum — bug real do framework, não hipotético, reproduzido rodando de verdade. Corrigido
+# lançando um erro claro em vez de deixar isso silencioso). Limitação aceita: um username
+# genuinamente inexistente no GitHub não tem como virar um Dev válido sem avatar — o original
+# também não tinha um caminho de sucesso pra esse caso, só falhava de um jeito bem pior.
+POST {{baseUrl}}/devs
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{ "username": "usuario-que-nao-existe-de-verdade-no-github-xyz999" }

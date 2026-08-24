@@ -86,6 +86,59 @@ class VideoController extends BaseController
         return $this->response->setJSON($video === null ? null : $this->present($video));
     }
 
+    /**
+     * POST /video (auth) — paridade com `VideoController.store` original: 400 se o canal
+     * não existir, 409 (não 201) se o vídeo já existir (dedup por url exata, depois de
+     * normalizar `&pp=`), thumbnail com fallback pro padrão do YouTube se vier vazia.
+     */
+    public function store()
+    {
+        $body = $this->request->getJSON(true);
+
+        $title       = (string) $body['title'];
+        $url         = VideoModel::stripTrackingParam((string) $body['url']);
+        $channelName = (string) $body['channel'];
+        $channelUrl  = (string) $body['channel_url'];
+        $thumbnail   = VideoModel::stripTrackingParam((string) ($body['thumbnail'] ?? ''));
+
+        $channel = $this->channels->findForVideoLink($channelName, $channelUrl);
+        if ($channel === null) {
+            return $this->response->setStatusCode(400)->setJSON([
+                'errorMessage' => "channel({$channelName}) not found, for: {$title}",
+                'title'        => $title,
+                'url'          => $url,
+                'channel'      => $channelName,
+                'channel_url'  => $channelUrl,
+                'thumbnail'    => $thumbnail,
+            ]);
+        }
+
+        $existing = $this->videos->findByExactUrl($url);
+        if ($existing !== null) {
+            $full = $this->videos->findByYoutubeId($existing['youtube_id']);
+
+            return $this->response->setStatusCode(409)->setJSON(array_merge(
+                ['errorMessage' => "video({$title}) already exists"],
+                $this->present($full)
+            ));
+        }
+
+        $youtubeId = VideoModel::extractYoutubeId($url);
+        if ($thumbnail === '') {
+            $thumbnail = "https://i.ytimg.com/vi/{$youtubeId}/hqdefault.jpg";
+        }
+
+        $this->videos->insert([
+            'youtube_id' => $youtubeId,
+            'title'      => $title,
+            'url'        => $url,
+            'channel_id' => (int) $channel['id'],
+            'thumbnail'  => $thumbnail,
+        ]);
+
+        return $this->response->setStatusCode(201)->setJSON($this->present($this->videos->findByYoutubeId($youtubeId)));
+    }
+
     private function present(array $video): array
     {
         return [

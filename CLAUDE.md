@@ -62,6 +62,19 @@ MySQL de serviço numa rede Docker isolada, replicando `composer install` + `.en
 `migrate` + `phpunit` linha por linha do `.yml`, não só confiar em "rodou local, deve rodar no
 CI"), *antes* de pedir pra abrir o PR — não depois de ver falhar no GitHub Actions.
 
+**Segundo achado real do mesmo incidente, mais sutil**: mesmo depois do fix acima, o CI ainda
+falhava — `phpunit` imprimia `OK, but there were issues!` (5/5 testes, 7 assertions, só um
+aviso "No code coverage driver available") e mesmo assim saía com **exit code 1**
+(`phpunit.dist.xml` tem `failOnWarning="true"`, e o aviso de cobertura ausente conta como
+warning). Eu tinha rodado esse mesmo `phpunit` várias vezes nas Fases 2 e 3 e nunca conferi o
+`$?` — só o resumo visual "5/5" me bastava, e isso escondeu o problema por duas fases
+inteiras. Corrigido instalando PCOV de verdade (`docker/php/Dockerfile` +
+`coverage: pcov` no `setup-php` do CI), não suprimindo o aviso. **Lição**: depois de rodar
+`phpunit` (ou qualquer comando que o CI também roda), sempre conferir `echo $?` explicitamente
+— "parece verde visualmente" não é o mesmo sinal que o CI usa pra decidir mergeável ou não.
+Cuidado extra com `$?` depois de um pipe (`comando | tail`) — captura o exit code do último
+comando do pipe, não do primeiro; rodar sem pipe quando o exit code importa.
+
 **PHPUnit/CIUnit é escopo da Fase 7, não das fases de endpoint (3, 5, 6).** Casos de aceite
 dessas fases são verificados rodando os `.http` de verdade (`npx httpyac send *.http --env
 local --all`, não `curl` solto nem alegação em prosa) e guardando a saída real como evidência

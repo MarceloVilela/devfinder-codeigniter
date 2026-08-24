@@ -49,6 +49,13 @@ etc.), não crie branch/commit/push/PR por conta própria — implementar até o
 trabalho autônomo normal, mas abrir o PR é uma ação visível pro GitHub que fica pra decisão
 humana, sempre. Avise que a fase está pronta e pergunte, não presuma.
 
+**PHPUnit/CIUnit é escopo da Fase 7, não das fases de endpoint (3, 5, 6).** Casos de aceite
+dessas fases são verificados rodando os `.http` de verdade (`npx httpyac send *.http --env
+local --all`, não `curl` solto nem alegação em prosa) e guardando a saída real como evidência
+versionada (ver `specs/acceptance/execucao-fase-3.log` como padrão a repetir). Suíte
+automatizada rodando no CI a cada PR só entra na Fase 7 (`plan.md`, "Suíte de testes CIUnit
+cobrindo os casos de aceite críticos").
+
 ## Ferramentas de contexto CodeIgniter
 
 Para reduzir alucinação em convenções específicas do framework durante a implementação:
@@ -62,7 +69,10 @@ Para reduzir alucinação em convenções específicas do framework durante a im
   isso). **Aprovado em 2026-08-24** — resolvido numa sessão `claude` aberta com `php-codei`
   como raiz (a sessão que configurou isso tinha `../serverless` como raiz, não `php-codei`, e
   por isso não pôde aprovar nem usar a ferramenta imediatamente). `resolve-library-id` testado
-  e funcionando — ver `specs/infra-pending.md`, item 2.
+  e funcionando — ver `specs/infra-pending.md`, item 2. **Custo verificado 2026-08-24**: plano
+  Free = US$ 0, sem cartão, sem cobrança automática — 1.000 chamadas/mês + 60/hora sem API key
+  (cortado de ~6.000/mês em jan/2026, sem aviso público — mesmo padrão do corte da Oracle
+  Cloud Always Free). Detalhe completo em `specs/infra-pending.md`, item 2, último bullet.
 - **`npx skills add yasserstudio/codeigniter-skills`** — skill de agente já publicada e
   instalável, cobrindo CI3 (3.1.x) e CI4 (4.7.x): migrations, seeders, Shield (auth), testes,
   Spark CLI, checklists de segurança/deploy. Instalar esta em vez de escrever uma skill

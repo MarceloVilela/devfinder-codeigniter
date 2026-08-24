@@ -19,14 +19,15 @@ use CodeIgniter\Config\BaseService;
  */
 class Services extends BaseService
 {
-    /*
-     * public static function example($getShared = true)
-     * {
-     *     if ($getShared) {
-     *         return static::getSharedInstance('example');
-     *     }
-     *
-     *     return new \CodeIgniter\Example();
-     * }
+    /**
+     * Dev identificado na request atual (Fase 4 — auth). Ver App\Libraries\AuthContext.
      */
+    public static function authContext(bool $getShared = true): \App\Libraries\AuthContext
+    {
+        if ($getShared) {
+            return static::getSharedInstance('authContext');
+        }
+
+        return new \App\Libraries\AuthContext();
+    }
 }

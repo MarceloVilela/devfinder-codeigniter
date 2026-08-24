@@ -8,7 +8,9 @@ de implementação spec-driven fase a fase.
 ## Quickstart (Docker Compose)
 
 ```bash
-cp env .env   # e ajuste app.baseURL / database.default.* se necessário
+cp .env.example .env   # já vem com os valores padrão do Docker Compose local preenchidos —
+                        # só falta as credenciais do GitHub OAuth App (auth.githubClientId/
+                        # githubClientSecret), ver specs/fase-4-endpoints-auth.md
 export UID GID   # se seu usuário não for uid/gid 1000 (padrão em várias distros Linux)
 docker compose up -d --build
 docker compose exec app php spark migrate --all

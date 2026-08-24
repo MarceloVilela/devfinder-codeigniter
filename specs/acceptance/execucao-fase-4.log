@@ -1,0 +1,138 @@
+Execução real de todos os .http de leitura + auth contra http://localhost:8081 (Docker
+Compose local, ambiente "local"), via `npx httpyac send *.http --env local --all` — não uma
+alegação em prosa, saída real do client. Gerado em 2026-08-24, **atualizado** no mesmo dia
+depois que `{{authToken}}` passou a ser um token real (login de verdade no GitHub como
+`marcelovilela`, não mais o `dev01` sintético usado na primeira rodada — ver "Atualização"
+ao final e `fase-4-endpoints-auth.md`, "Verificação humana"). Supersede `execucao-fase-3.log`.
+
+Comando exato:
+  cd specs/acceptance
+  npx --yes httpyac send devs-index.http dev-show.http channels-index.http \
+    channel-show.http feed-trending.http feed-channel.http video-show.http \
+    description-feed.http description-category.http auth-github.http me.http \
+    --env local --all -o short
+
+`{{authToken}}` resolvido via `http-client.private.env.json` local (gitignored) — token real
+do login OAuth (`marcelovilela`). `{{ghostAuthToken}}` continua sintético (username
+inexistente, gerado com `firebase/php-jwt` + o mesmo `auth.jwtSecret` do `.env`).
+
+Nota sobre `auth-github.http`: os dois primeiros casos (`GET /auth/github`) mostram 3 linhas
+cada — a primeira é a resposta real da nossa API (302, Location com o `client_id` real do
+GitHub OAuth App cadastrado), as duas seguintes são o `httpyac` seguindo o redirect até o
+`github.com` real (comportamento padrão do client) — sem relevância pro teste, a asserção que
+importa é a primeira linha de cada bloco. Mesma coisa pro `callback` sem `code`: primeira
+linha é o 302 da nossa API pro `auth.webURL/login`; a segunda é o client tentando seguir pra
+`localhost:3000` (devfinder-next não estava rodando), 404 esperado e sem relevância.
+
+Nota sobre `devs-index.http`/`feed-trending.http` "personalizado (auth)": como `{{authToken}}`
+agora é `marcelovilela` (dev real, sem likes/dislikes/ignore), esses dois casos só excluem o
+próprio dev — `/devs` total 35 (não 32), `/feed/trending` total 55 (não 20, igual ao
+anônimo). O caso equivalente com reações de verdade continua coberto por `?user=dev01` em
+`feed-trending.http` (usa a fixture determinística, não `{{authToken}}`).
+
+=== GET /devs — page 1 (fixture sintética da Fase 3: 35 devs, ver AcceptanceDevSeeder) ===
+GET http://localhost:8081/v1/devs?page=1
+=> 200 (76 ms, 12.93 kB)
+=== GET /devs — page 2 (resto: 35 - 30 = 5, dev05..dev01) ===
+GET http://localhost:8081/v1/devs?page=2
+=> 200 (21 ms, 3 kB)
+=== GET /devs — sem page (default = 1, mesmo resultado do primeiro caso) ===
+GET http://localhost:8081/v1/devs
+=> 200 (68 ms, 12.93 kB)
+=== GET /devs — personalizado (auth, Fase 4) — marcelovilela, sem reações, exclui só a si ===
+GET http://localhost:8081/v1/devs?page=1
+=> 200 (72 ms, 12.9 kB) — total: 35
+=== GET /devs — token inválido em rota opcional (não deve bloquear) ===
+GET http://localhost:8081/v1/devs?page=1
+=> 200 (81 ms, 12.93 kB)
+=== GET /devs/{username} — encontrado (fixture sintética, ver AcceptanceReactionSeeder) ===
+GET http://localhost:8081/v1/devs/dev01
+=> 200 (16 ms, 687 B)
+=== GET /devs/{username} — não encontrado ===
+GET http://localhost:8081/v1/devs/nobody
+=> 200 (13 ms, 312 B)
+=== GET /channels ===
+GET http://localhost:8081/v1/channels
+=> 200 (15 ms, 1.34 kB)
+=== GET /channels/{searchQuery} — encontrado por nome ===
+GET http://localhost:8081/v1/channels/Canal%20Alpha
+=> 200 (13 ms, 769 B)
+=== GET /channels/{searchQuery} — não encontrado ===
+GET http://localhost:8081/v1/channels/nao-existe
+=> 200 (11 ms, 312 B)
+=== Busca por link — funciona na query SQL, mas não é exercitável via este path ===
+=== GET /feed/trending — page 1 (fixture sintética: 55 vídeos, ver AcceptanceVideoSeeder) ===
+GET http://localhost:8081/v1/feed/trending?page=1
+=> 200 (14 ms, 15.52 kB)
+=== GET /feed/trending — page 2 (resto: 55 - 30 = 25 — 5 de Beta + 20 de Alpha) ===
+GET http://localhost:8081/v1/feed/trending?page=2
+=> 200 (15 ms, 13.09 kB)
+=== GET /feed/trending — page além do fim ===
+GET http://localhost:8081/v1/feed/trending?page=99
+=> 200 (14 ms, 13.09 kB)
+=== GET /feed/trending — personalizado via `?user=dev01` (fixture determinística) ===
+GET http://localhost:8081/v1/feed/trending?page=1&user=dev01
+=> 200 (17 ms, 10.56 kB) — total: 20 (dev01 ignora Canal Beta)
+=== GET /feed/trending — personalizado via Bearer token — marcelovilela, sem ignore ===
+GET http://localhost:8081/v1/feed/trending?page=1
+=> 200 (19 ms, 15.52 kB) — total: 55 (igual ao anônimo)
+=== GET /feed/channel?channel_name= — page 1 (Canal Beta, 35 vídeos > 1 página) ===
+GET http://localhost:8081/v1/feed/channel?channel_name=Canal%20Beta&page=1
+=> 200 (18 ms, 15.52 kB)
+=== GET /feed/channel?channel_name= — page 2 (resto: 35 - 30 = 5) ===
+GET http://localhost:8081/v1/feed/channel?channel_name=Canal%20Beta&page=2
+=> 200 (17 ms, 2.9 kB)
+=== GET /feed/channel?channel_name= — canal com 1 página só (Canal Alpha, 20 vídeos) ===
+GET http://localhost:8081/v1/feed/channel?channel_name=Canal%20Alpha
+=> 200 (15 ms, 10.56 kB)
+=== GET /feed/channel?channel_name= — canal inexistente ===
+GET http://localhost:8081/v1/feed/channel?channel_name=NaoExiste
+=> 200 (15 ms, 366 B)
+=== GET /video/{idYoutubeWatch} — encontrado (fixture sintética, ver AcceptanceVideoSeeder) ===
+GET http://localhost:8081/v1/video/vidalpha01
+=> 200 (13 ms, 711 B)
+=== GET /video/{idYoutubeWatch} — não encontrado ===
+GET http://localhost:8081/v1/video/does-not-exist
+=> 200 (11 ms, 312 B)
+=== GET /description/feed ===
+GET http://localhost:8081/v1/description/feed
+=> 200 (13 ms, 444 B)
+=== GET /description/category ===
+GET http://localhost:8081/v1/description/category
+=> 200 (9 ms, 829 B)
+=== auth-github (fluxo GitHub OAuth completo, Fase 4) ===
+=== GET /auth/github — só a parte do redirect, sem seguir ===
+GET https://github.com/login/oauth/authorize?client_id=Ov23liUMgeFPZSrwXTS1&redirect_uri=http%3A%2F%2Flocalhost%3A8081%2Fv1%2Fauth%2Fgithub%2Fcallback
+=> 302 (349 B)
+=== GET /auth/github/callback — sem `code` (caminho de falha, ex.: usuário negou no GitHub) ===
+GET http://localhost:3000/login
+=> 302 (230 B)
+=== GET /me — sem token ===
+GET http://localhost:8081/v1/me
+=> 401 (10 ms, 240 B)
+=== GET /me — token malformado ===
+GET http://localhost:8081/v1/me
+=> 401 (10 ms, 235 B)
+=== GET /me — token válido (real, login de verdade) ===
+GET http://localhost:8081/v1/me
+=> 200 (16 ms, 634 B)
+{
+    "_id": 37, "name": "Marcelo Vilela", "user": "marcelovilela",
+    "avatar": "https://avatars.githubusercontent.com/u/32023347?v=4",
+    "likes": [], "deslikes": [], "follow": [], "ignore": []
+}
+=== GET /me — token de username inexistente ===
+GET http://localhost:8081/v1/me
+=> 401 (13 ms, 235 B)
+
+=== Atualização 2026-08-24 — fluxo OAuth real, ponta a ponta, feito pelo usuário ===
+
+O token em `{{authToken}}` acima veio de um login de verdade no GitHub, via GitHub OAuth App
+real (Homepage http://localhost:3000, callback http://localhost:8081/v1/auth/github/callback)
+— não um JWT sintético. Passo a passo em ../fase-4-endpoints-auth.md, "Verificação humana".
+
+Confirma de ponta a ponta: GithubOAuth::exchangeCodeForToken (troca code por access_token
+real) + fetchProfile (perfil real da API do GitHub) + DevModel::findOrCreate (upsert do Dev
+real, idempotente — dois logins seguidos devolveram o mesmo `_id: 37`) + Jwt::encode/decode
+(token real). Única parte do mecanismo de auth que não dava pra exercitar contra a API real
+do GitHub sem esse passo humano.

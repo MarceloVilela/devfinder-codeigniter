@@ -39,8 +39,10 @@ substitui suposição por evidência para as decisões de constraint (unique, nu
 
 ## Modelo relacional proposto
 
-7 tabelas, InnoDB (obrigatório para `FOREIGN KEY`), `utf8mb4`/`utf8mb4_unicode_ci` (definido
-uma vez em `app/Config/Database.php` na Fase 2, não por tabela). Normalização: arrays
+7 tabelas, InnoDB (obrigatório para `FOREIGN KEY`), `utf8mb4`/`utf8mb4_0900_ai_ci` (definido
+uma vez em `app/Config/Database.php` na Fase 2, não por tabela — decisão fechada na execução
+da Fase 2: `utf8mb4_0900_ai_ci` é a collation nativa recomendada do MySQL 8.0+, acento/case
+insensitive, sem custo de `LOWER()` em lookups por `name`/`link`). Normalização: arrays
 embutidos do Mongoose (`tags[]`, `likes[]`, `deslikes[]`, `follow[]`, `ignore[]`) viram
 tabelas próprias — nenhuma coluna JSON/CSV como substituto de relação, para manter integridade
 referencial de verdade (FK, não uma convenção de aplicação).
@@ -195,7 +197,7 @@ mesmo canal simultaneamente hoje (não checado no código-fonte).
   de um `for`, cada erro empurrado para um array `errors` sem interromper os demais); uma
   transação única no lote mudaria esse comportamento para tudo-ou-nada, o que não é paridade.
 - **Charset/collation**: `utf8mb4` (suporta emoji — `ChannelController.store` já remove
-  emoji de `category`, evidência de que o dado de origem contém) / `utf8mb4_unicode_ci`,
+  emoji de `category`, evidência de que o dado de origem contém) / `utf8mb4_0900_ai_ci`,
   configurado uma vez em `app/Config/Database.php` (Fase 2), não repetido em cada migration.
 
 ## Padrões CodeIgniter 4 (prioridade explícita desta execução)
@@ -390,8 +392,14 @@ class CreateDevReactionsTable extends Migration
             'created_at'    => ['type' => 'DATETIME', 'null' => true],
         ]);
         $this->forge->addKey(['dev_id', 'target_dev_id', 'type'], true);
-        $this->forge->addForeignKey('dev_id', 'devs', 'id', 'CASCADE', 'CASCADE');
-        $this->forge->addForeignKey('target_dev_id', 'devs', 'id', 'CASCADE', 'CASCADE');
+        // on_update RESTRICT (não CASCADE): confirmado rodando a migration de verdade contra
+        // MySQL 8.4 na Fase 2 — InnoDB proíbe CHECK constraint numa coluna que também tenha
+        // ON UPDATE CASCADE ("Column 'dev_id' cannot be used in a check constraint... needed
+        // in a foreign key constraint... referential action"). ON DELETE CASCADE sozinho
+        // funciona normalmente; RESTRICT no update não perde nada de prático (PK
+        // auto_increment nunca é atualizada).
+        $this->forge->addForeignKey('dev_id', 'devs', 'id', 'RESTRICT', 'CASCADE');
+        $this->forge->addForeignKey('target_dev_id', 'devs', 'id', 'RESTRICT', 'CASCADE');
         $this->forge->createTable('dev_reactions');
 
         // CHECK constraint — nova invariante, ver "Consistência de banco". Forge não tem
@@ -626,3 +634,14 @@ Feedback do usuário sobre a primeira versão deste documento, 3 pontos:
 Fase 2 (scaffold CI4 + Docker + deploy real) consome este documento para gerar o projeto CI4
 de verdade (`composer create-project codeigniter4/appstarter`), copiar as 7 migrations acima
 para `app/Database/Migrations/`, e declarar `app/Config/Database.php` com `utf8mb4`/InnoDB.
+
+## Validação real (Fase 2, 2026-08-24)
+
+As 7 migrations rodaram de verdade contra MySQL 8.4 (`docker compose exec app php spark
+migrate --all`) — todas as constraints testadas manualmente e confirmadas: `CHECK` bloqueia
+auto-like, `UNIQUE` em `channels.name` bloqueia duplicata, toggle de reação funciona. Um
+achado só visível rodando de verdade (não previsível por leitura de código): MySQL/InnoDB
+proíbe `CHECK` numa coluna que tenha `ON UPDATE CASCADE` — corrigido pra `RESTRICT` no update
+das FKs de `dev_reactions` (nota já incorporada na migration acima). `utf8mb4_unicode_ci`
+citado antes virou `utf8mb4_0900_ai_ci` — decisão fechada agora que a versão do MySQL (8.4)
+está definida.

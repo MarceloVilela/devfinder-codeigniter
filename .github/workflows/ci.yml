@@ -1,0 +1,78 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: devfinder
+          MYSQL_USER: devfinder
+          MYSQL_PASSWORD: devfinder
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: mbstring, intl, mysqli, pdo_mysql, zip, gd
+          coverage: none
+
+      - name: Create test database
+        run: |
+          mysql -h127.0.0.1 -uroot -proot -e "
+            CREATE DATABASE IF NOT EXISTS devfinder_test CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+            GRANT ALL PRIVILEGES ON devfinder_test.* TO 'devfinder'@'%';
+            FLUSH PRIVILEGES;
+          "
+
+      - name: Install dependencies
+        run: composer install --no-interaction --no-progress --prefer-dist
+
+      - name: Configure environment
+        run: |
+          cp env .env
+          sed -i "s/# CI_ENVIRONMENT = production/CI_ENVIRONMENT = testing/" .env
+          {
+            echo "database.default.hostname = 127.0.0.1"
+            echo "database.default.database = devfinder"
+            echo "database.default.username = devfinder"
+            echo "database.default.password = devfinder"
+            echo "database.default.DBDriver = MySQLi"
+            echo "database.default.port = 3306"
+            echo "database.default.charset = utf8mb4"
+            echo "database.default.DBCollat = utf8mb4_0900_ai_ci"
+            echo "database.tests.hostname = 127.0.0.1"
+            echo "database.tests.database = devfinder_test"
+            echo "database.tests.username = devfinder"
+            echo "database.tests.password = devfinder"
+            echo "database.tests.DBDriver = MySQLi"
+            echo "database.tests.port = 3306"
+            echo "database.tests.charset = utf8mb4"
+            echo "database.tests.DBCollat = utf8mb4_0900_ai_ci"
+            echo "encryption.key = hex2bin:$(openssl rand -hex 16)"
+          } >> .env
+
+      - name: Run migrations (default connection)
+        run: php spark migrate --all
+
+      - name: Run test suite (tests connection, MySQL-backed)
+        run: vendor/bin/phpunit

@@ -1,0 +1,9 @@
+### GET /devs/{username} — encontrado
+# Esperado: 200, corpo = Dev serializado (_id=username, user=username, name, bio, avatar,
+# likes/deslikes/follow/ignore como array — nao Set —, createdAt, updatedAt).
+GET {{baseUrl}}/devs/marcelovilela
+
+### GET /devs/{username} — nao encontrado
+# Esperado: 200 (nao 404) + corpo `null` — paridade com Dev.findOne do Mongo original
+# (ver specs/fase-3-endpoints-leitura.md, "Descobertas" #3).
+GET {{baseUrl}}/devs/nobody

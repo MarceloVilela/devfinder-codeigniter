@@ -1,0 +1,26 @@
+### GET /feed/trending — page 1 (dado real: specs/seed/omni8.videos.json, 500 videos)
+# Esperado: 200, corpo {docs, total: 500, itemsPerPage: 30}, docs.length = 30, ordenado por
+# createdAt desc (video mais recente primeiro).
+GET {{baseUrl}}/feed/trending?page=1
+
+### GET /feed/trending — ultima pagina parcial (500 = 16*30 + 20 -> page 17 tem 20 itens)
+# Aqui e um `LIMIT/OFFSET` direto do MySQL (nao um cursor sequencial como na versao
+# ../serverless, que precisa de O(page) leituras no DynamoDB) — mantido como caso de aceite
+# porque ainda exercita paginacao real perto do fim dos dados, nao so um numero pequeno.
+GET {{baseUrl}}/feed/trending?page=17
+
+### GET /feed/trending — page alem do fim
+# Esperado: 200, docs = [], total = 500 (nao um erro).
+GET {{baseUrl}}/feed/trending?page=99
+
+### GET /feed/trending — personalizado via ?user= (Fase 4, specs/fase-4-auth.md)
+# Seed real: marcelovilela tem 6 canais em `ignore`. Esperado: 200, total: 450 (500 - 50
+# videos desses canais), nenhum doc com channel_id em
+# [attekita-dev, curso-em-video, gregory-pacheco, nicbrvideos, portal-hugo-cursos, programador-br].
+GET {{baseUrl}}/feed/trending?page=1&user=marcelovilela
+
+### GET /feed/trending — personalizado via Bearer token (equivalente ao ?user= acima)
+# Gerar o token: ver specs/gerar-token-365-dias.md ou specs/acceptance/me.http.
+# Esperado: mesmo resultado do caso acima (total: 450).
+GET {{baseUrl}}/feed/trending?page=1
+Authorization: Bearer {{authToken}}

@@ -1,0 +1,31 @@
+### POST /channels — canal novo, category com emoji e espacos nas pontas
+# Esperado: 201. GET /channels/{slug} depois confirma category = "Design" (trim + strip de
+# emoji, achado #14) e slug = "canal-teste-fase-5" (derivado de "title").
+POST {{baseUrl}}/channels
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "link": "https://www.youtube.com/channel/UCTESTFASE5",
+  "title": "Canal Teste Fase 5",
+  "description": "desc",
+  "tags": ["test"],
+  "category": " 🎨 Design "
+}
+
+### POST /channels — mesmo link, caminho de update
+# Esperado: 201 (nao 200 — paridade com ChannelController.store original, decisao #3 de
+# specs/fase-5-escrita-relacionamentos.md), slug inalterado (mesmo "canal-teste-fase-5"),
+# name/description/tags atualizados. Sem o `Dev.create` acessorio quebrado do original
+# (achado #4) — nenhum efeito colateral em Dev.
+POST {{baseUrl}}/channels
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "link": "https://www.youtube.com/channel/UCTESTFASE5",
+  "title": "Canal Teste Fase 5 Updated",
+  "description": "desc2",
+  "tags": ["test", "updated"],
+  "category": "Design"
+}

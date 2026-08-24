@@ -1,0 +1,8 @@
+**/*__.*
+
+# editor
+.vscode
+
+# secrets
+.env
+specs/acceptance/http-client.private.env.json

@@ -1,0 +1,9 @@
+### GET /video/{idYoutubeWatch} — encontrado (dado real, specs/seed/omni8.videos.json)
+# Esperado: 200, corpo = Video serializado (_id=videoId, title, url, channel_id=channelSlug,
+# channel, channel_url, thumbnail, viewnum, date, createdAt, updatedAt).
+GET {{baseUrl}}/video/up0im04clS8
+
+### GET /video/{idYoutubeWatch} — nao encontrado
+# Esperado: 200 (nao 404) + corpo `null` — paridade com Video.findOne do Mongo original
+# (ver specs/fase-3-endpoints-leitura.md, "Descobertas" #3).
+GET {{baseUrl}}/video/does-not-exist

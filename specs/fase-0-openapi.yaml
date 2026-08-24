@@ -1,0 +1,748 @@
+openapi: 3.0.3
+info:
+  title: DevFinder API
+  version: 1.0.0
+  description: >
+    Contrato-fonte da replicação em CodeIgniter 4. Adaptado de
+    `../../serverless/specs/fase-0-openapi.yaml` (mesmo domínio `devfinder-api`, mesmas 30
+    operações) — não re-derivado do zero do Swagger original, ver `../plan.md`, Fase 0. Os
+    `paths`/`schemas` abaixo são idênticos aos da versão serverless (o contrato público não
+    muda entre arquiteturas de backend — `devfinder-next` não pode quebrar em nenhuma delas);
+    só `servers`, a convenção `x-auth` (implementação) e a descrição de `bearerAuth` foram
+    ajustados para esta stack. Este arquivo é a especificação de referência da Fase 0 (ver
+    `../plan.md`) — qualquer endpoint implementado deve corresponder exatamente ao que está
+    aqui, e qualquer discrepância encontrada durante a implementação deve ser corrigida aqui
+    primeiro.
+servers:
+  - url: http://localhost:8080/v1
+    description: Docker Compose local (PHP-FPM + Nginx + MySQL, ver ../plan.md Fase 2)
+  - url: https://TBD.exemplo.com/v1
+    description: >
+      Deploy real — provedor ainda não escolhido (decisão adiada pra Fase 2, ver
+      ../specs/infra-pending.md) — URL placeholder até a execução dessa fase.
+  - url: https://api2-devfinder.herokuapp.com/v1
+    description: Origem atual (Heroku, devfinder-api), referência de comportamento
+
+tags:
+  - name: Dev
+  - name: Channel
+  - name: Video
+  - name: Search
+  - name: Description
+  - name: Auth
+  - name: Dev.likes|dislikes
+
+# ---------------------------------------------------------------------------
+# Convenção de autenticação (não expressável de forma nativa em OpenAPI 3.0):
+#   x-auth: public    -> sem Filter de auth, identidade nunca é populada
+#   x-auth: optional   -> OptionalAuthFilter (CodeIgniter 4): token Bearer, se presente e
+#                         válido, popula o Dev autenticado e personaliza a resposta; se
+#                         ausente/inválido, segue como público (nunca 401)
+#   x-auth: required   -> RequiredAuthFilter (CodeIgniter 4): token Bearer obrigatório, 401
+#                         se ausente/inválido
+# Mesma semântica de `optionalAuthMiddleware`/`authMiddleware` do devfinder-api original
+# (`devfinder-api/src/middlewares/{auth,optionalAuth}.ts`), reimplementada como Filter — ver
+# ../plan.md, Fase 4. Os Filters em si ainda não existem (Fase 4 não executada).
+# ---------------------------------------------------------------------------
+
+paths:
+  /:
+    get:
+      tags: []
+      summary: Get info about app
+      x-auth: public
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AppInfo"
+
+  /devs:
+    get:
+      tags: [Dev]
+      summary: Get all devs (with pagination)
+      x-auth: optional
+      parameters:
+        - name: page
+          in: query
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginationDev"
+    post:
+      tags: [Dev]
+      summary: Create dev
+      x-auth: required
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username]
+              properties:
+                username:
+                  type: string
+                  description: GitHub username
+                  example: marcelovilela
+      responses:
+        "201":
+          description: Dev adicionado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Dev"
+
+  /devs/{username}:
+    get:
+      tags: [Dev]
+      summary: Gets a dev by username
+      x-auth: optional
+      parameters:
+        - name: username
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Dev"
+
+  /channels:
+    get:
+      tags: [Channel]
+      summary: Get all channels (with pagination)
+      x-auth: optional
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ArrayOfChannel"
+    post:
+      tags: [Channel]
+      summary: Create channel
+      x-auth: required
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddChannel"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Channel"
+
+  /channels/{searchQuery}:
+    get:
+      tags: [Channel]
+      summary: Get a channel by name or link
+      x-auth: optional
+      parameters:
+        - name: searchQuery
+          in: path
+          required: true
+          description: name or link of channel to be used as a search
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Channel"
+
+  /channels/refresh:
+    post:
+      tags: [Channel]
+      summary: Synchronize channels
+      description: >
+        Consult the list of channels, check which ones are not yet registered, then
+        register. Escopo de canal (ao contrário do de vídeo) ainda sem plano de execução
+        nem na versão ../serverless nem aqui — ver ../plan.md, Fase 6.
+      x-auth: required
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Array with the names of the channels that were added
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ArrayOfChannelName"
+
+  /description/feed:
+    get:
+      tags: [Description]
+      summary: Generate a shareable text description of the current trending feed
+      description: >
+        Fonte: código (`devfinder-api/src/controllers/Description/FeedController.ts`), não
+        documentado no swagger original. Não acessa o banco diretamente — chama `GET
+        /channels` e `GET /feed/trending?page=1` desta própria API via HTTP e monta um texto
+        em português (para descrições de vídeo do YouTube) com hashtags derivadas das tags
+        dos canais.
+      x-auth: optional
+      responses:
+        "200":
+          description: Texto formatado em HTML simples (usa `<br />` como quebra de linha)
+          content:
+            text/html:
+              schema: { type: string }
+
+  /description/category:
+    get:
+      tags: [Description]
+      summary: Generate shareable text descriptions grouped by channel category
+      description: >
+        Fonte: código (`devfinder-api/src/controllers/Description/CategoryController.ts`),
+        não documentado no swagger original. Mesma fonte de dados que `/description/feed`,
+        mas agrupada por `category` dos canais.
+      x-auth: optional
+      responses:
+        "200":
+          description: >
+            Array de textos (um por categoria), serializado como string via
+            `res.send(array)` do Express — comportamento a decidir/normalizar na
+            implementação (mesma decisão em aberto documentada em
+            `../../serverless/specs/fase-0-especificacao.md`, ainda sem revisão humana lá
+            nem aqui).
+          content:
+            text/html:
+              schema: { type: string }
+
+  /feed/trending:
+    get:
+      tags: [Video]
+      summary: Get all recent videos
+      x-auth: optional
+      parameters:
+        - name: page
+          in: query
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginationVideo"
+
+  /feed/channel:
+    get:
+      tags: [Video]
+      summary: Get all videos from a channel
+      x-auth: optional
+      parameters:
+        - name: channel_name
+          in: query
+          schema: { type: string }
+        - name: page
+          in: query
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginationVideo"
+
+  /feed/subscriptions:
+    get:
+      tags: [Video]
+      summary: Get videos related to the channels you are subscribed to
+      x-auth: required
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: page
+          in: query
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginationVideo"
+
+  /video/{idYoutubeWatch}:
+    get:
+      tags: [Video]
+      summary: Get a video by the id contained in the link
+      x-auth: optional
+      parameters:
+        - name: idYoutubeWatch
+          in: path
+          required: true
+          description: >
+            YouTube video id. Ex: https://www.youtube.com/watch?v=Cz55Jmhfw84,
+            id: Cz55Jmhfw84
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Video"
+
+  /video:
+    post:
+      tags: [Video]
+      summary: Create video
+      x-auth: required
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddVideo"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Video"
+
+  /video/refresh:
+    post:
+      tags: [Video]
+      summary: Batch-ingest videos (used by the external scraping job)
+      description: >
+        Fonte: código (`devfinder-api/src/controllers/Video/VideoRefreshController.ts` e
+        `devfinder-api/src/task.ts`), não documentado no swagger original. Consumido hoje por
+        um script externo que lê um bin do JSONBin.io e faz POST aqui com `{ record: [...] }`.
+        Ver ../plan.md, Fase 6, para a decisão de expor isso como rota HTTP autenticada além
+        do Command `spark` agendado via cron (mesma paridade de contrato adotada em
+        `../../serverless/specs/fase-6-ingestao-lote.md`, trocando EventBridge Scheduler por
+        cron na VM real).
+      x-auth: required
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [record]
+              properties:
+                record:
+                  type: array
+                  items:
+                    $ref: "#/components/schemas/AddVideo"
+      responses:
+        "200":
+          description: Resultado da ingestão em lote
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VideoRefreshResult"
+
+  /search:
+    get:
+      tags: [Search]
+      summary: Search videos and channels
+      description: >
+        Correção de spec (herdada de `../../serverless/specs/fase-0-openapi.yaml`): o
+        `swagger_output.json` original referenciava `#/definitions/SearchResult` (objeto
+        único), mas `devfinder-api/src/controllers/Search/SearchController.ts` sempre
+        responde com `res.json([...channelsOptions, ...videosOptions])` — um array.
+        Corrigido aqui para `ArrayOfSearchResult`. MySQL tem `FULLTEXT INDEX` nativo (ao
+        contrário do DynamoDB da versão serverless, que aceitou `Scan` como exceção
+        documentada) — decidir na Fase 1 se vale a pena usar, ou se `LIKE '%termo%'` já é
+        suficiente na escala deste projeto.
+      x-auth: optional
+      parameters:
+        - name: q
+          in: query
+          description: Search query
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ArrayOfSearchResult"
+
+  /me:
+    get:
+      tags: [Dev]
+      summary: Returns authenticated user information
+      x-auth: required
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: A JSON object containing data from the authenticated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Dev"
+        "400":
+          description: Bad Request
+
+  /likes/devs/{username}:
+    post:
+      tags: [Dev.likes|dislikes]
+      summary: Add like to dev
+      x-auth: required
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/UsernamePath"
+      responses:
+        "200": { $ref: "#/components/responses/DevAuthenticated" }
+        "400": { description: Bad Request }
+    delete:
+      tags: [Dev.likes|dislikes]
+      summary: Remove like for dev
+      x-auth: required
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/UsernamePath"
+      responses:
+        "200": { $ref: "#/components/responses/DevAuthenticated" }
+        "400": { description: Bad Request }
+
+  /dislikes/devs/{username}:
+    post:
+      tags: [Dev.likes|dislikes]
+      summary: Add dislike to dev
+      x-auth: required
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/UsernamePath"
+      responses:
+        "200": { $ref: "#/components/responses/DevAuthenticated" }
+        "400": { description: Bad Request }
+    delete:
+      tags: [Dev.likes|dislikes]
+      summary: Remove dislike for dev
+      x-auth: required
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/UsernamePath"
+      responses:
+        "200": { $ref: "#/components/responses/DevAuthenticated" }
+        "400": { description: Bad Request }
+
+  /likes/channels/{username}:
+    post:
+      tags: [Dev.likes|dislikes]
+      summary: Add like (follow) to channel
+      x-auth: required
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/UsernamePath"
+      responses:
+        "200": { $ref: "#/components/responses/DevAuthenticated" }
+        "400": { description: Bad Request }
+    delete:
+      tags: [Dev.likes|dislikes]
+      summary: Remove like (unfollow) for channel
+      x-auth: required
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/UsernamePath"
+      responses:
+        "200": { $ref: "#/components/responses/DevAuthenticated" }
+        "400": { description: Bad Request }
+
+  /dislikes/channels/{username}:
+    post:
+      tags: [Dev.likes|dislikes]
+      summary: Add dislike (ignore) to channel
+      x-auth: required
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/UsernamePath"
+      responses:
+        "200": { $ref: "#/components/responses/DevAuthenticated" }
+        "400": { description: Bad Request }
+    delete:
+      tags: [Dev.likes|dislikes]
+      summary: Remove dislike (un-ignore) for channel
+      x-auth: required
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/UsernamePath"
+      responses:
+        "200": { $ref: "#/components/responses/DevAuthenticated" }
+        "400": { description: Bad Request }
+
+  /likes/devs:
+    get:
+      tags: [Dev.likes|dislikes]
+      summary: Get devs marked with like (by the authenticated user)
+      x-auth: required
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: >
+            A JSON object containing array of devs marked with like by authenticated
+            user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ArrayOfDev"
+
+  /dislikes/devs:
+    get:
+      tags: [Dev.likes|dislikes]
+      summary: Get devs marked with dislike (by the authenticated user)
+      x-auth: required
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: >
+            A JSON object containing array of devs marked with dislike by
+            authenticated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ArrayOfDev"
+
+  /auth/github:
+    get:
+      tags: [Auth]
+      summary: Redirects to social authentication - GitHub
+      description: >
+        Fonte: código (`devfinder-api/src/routes/socialLoginGithub.ts`), explicitamente
+        marcado `#swagger.ignore = true` no original (não aparece em
+        `swagger_output.json`). Inicia o fluxo OAuth (implementação direta, sem
+        Passport/sessão — mesma decisão adotada em
+        `../../serverless/specs/fase-4-auth.md`); redireciona para o GitHub.
+      x-auth: public
+      responses:
+        "302":
+          description: Redirect to GitHub OAuth consent screen
+
+  /auth/github/callback:
+    get:
+      tags: [Auth]
+      summary: Handles the response of social authentication - GitHub
+      description: >
+        Fonte: código (`devfinder-api/src/routes/socialLoginGithub.ts`), explicitamente
+        marcado `#swagger.ignore = true` no original. Troca o `code` do GitHub por perfil,
+        faz upsert do `Dev`, emite um JWT `{ username }` (payload trocado de `{ id }` para
+        `{ username }`, mesma decisão de `../../serverless/specs/fase-4-auth.md` — não
+        depender de um ID interno específico de banco no token) e redireciona para
+        `${APP_WEB_URL}/login?token=<jwt>`.
+      x-auth: public
+      parameters:
+        - name: code
+          in: query
+          required: true
+          schema: { type: string }
+      responses:
+        "302":
+          description: Redirect to `${APP_WEB_URL}/login?token=<jwt>`
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: >
+        `Authorization: Bearer <token>`. Token emitido em `/auth/github/callback`, payload
+        `{ username }`, validade 7 dias — ver ../plan.md, Fase 4. Secret via `.env`
+        (`APP_SECRET`), sem equivalente a Secrets Manager nesta stack (ver
+        ../specs/infra-pending.md).
+
+  parameters:
+    UsernamePath:
+      name: username
+      in: path
+      required: true
+      schema: { type: string }
+
+  responses:
+    DevAuthenticated:
+      description: A JSON object containing data from the authenticated user
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Dev"
+
+  schemas:
+    AppInfo:
+      type: object
+      properties:
+        appname: { type: string, example: DevFinder }
+
+    Dev:
+      type: object
+      properties:
+        _id: { type: string, example: "5f2...fd1" }
+        name: { type: string, example: "Marcelo Vilela" }
+        user: { type: string, example: marcelovilela }
+        bio: { type: string, example: "" }
+        avatar:
+          type: string
+          example: https://avatars3.githubusercontent.com/u/32023347?v=4
+        likes:
+          type: array
+          items: { type: string }
+          example: ["5ee...20d", "5ee...b74"]
+        deslikes:
+          type: array
+          items: { type: string }
+          example: ["5ef...d86"]
+        follow:
+          type: array
+          items: { type: string }
+          example: ["5ef...2b9"]
+        ignore:
+          type: array
+          items: { type: string }
+          example: ["5ef...d7c", "5ef...d8f", "5ef...30b"]
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    ArrayOfDev:
+      type: array
+      items: { $ref: "#/components/schemas/Dev" }
+
+    PaginationDev:
+      type: object
+      properties:
+        docs: { $ref: "#/components/schemas/ArrayOfDev" }
+        total: { type: number, example: 21 }
+        itemsPerPage: { type: number, example: 30 }
+
+    Channel:
+      type: object
+      properties:
+        _id: { type: string, example: "5ef...2b8" }
+        name: { type: string, example: Rocketseat }
+        userGithub: { type: string, example: rocketseat }
+        link:
+          type: string
+          example: https://www.youtube.com/channel/UCSfwM5u0Kce6Cce8_S72olg
+        description: { type: string }
+        category: { type: string, example: "Desenvolvimento Front-End " }
+        tags:
+          type: array
+          items: { type: string }
+          example: [javascript, react, react native]
+        avatar: { type: string }
+        likes:
+          type: array
+          items: { type: string }
+        deslikes:
+          type: array
+          items: { type: string }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    ArrayOfChannel:
+      type: array
+      items: { $ref: "#/components/schemas/Channel" }
+
+    AddChannel:
+      type: object
+      required: [link, title, category]
+      properties:
+        link:
+          type: string
+          example: https://www.youtube.com/channel/UCSfwM5u0Kce6Cce8_S72olg
+        title: { type: string, example: Rocketseat }
+        description: { type: string }
+        tags:
+          type: array
+          items: { type: string }
+          example: [javascript, react, react native]
+        category: { type: string, example: "Desenvolvimento Front-End " }
+
+    ArrayOfChannelName:
+      type: array
+      items: { type: string }
+      example: ["edinei.dev", "Uniday Studio"]
+
+    Video:
+      type: object
+      properties:
+        _id: { type: string }
+        title:
+          type: string
+          example: "Serverless com ReactJS e Next.js na Vercel | Code/Drops #56"
+        url: { type: string, example: https://www.youtube.com/watch?v=Cz55Jmhfw84 }
+        channel_id: { type: string }
+        channel: { type: string, example: Rocketseat }
+        channel_url:
+          type: string
+          example: https://www.youtube.com/channel/UCSfwM5u0Kce6Cce8_S72olg
+        thumbnail: { type: string }
+        viewnum: { type: number }
+        date: { type: string, format: date-time }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    ArrayOfVideo:
+      type: array
+      items: { $ref: "#/components/schemas/Video" }
+
+    PaginationVideo:
+      type: object
+      properties:
+        docs: { $ref: "#/components/schemas/ArrayOfVideo" }
+        total: { type: number, example: 1920 }
+        itemsPerPage: { type: number, example: 30 }
+
+    AddVideo:
+      type: object
+      required: [title, url, channel, channel_url]
+      properties:
+        title: { type: string }
+        url: { type: string }
+        channel: { type: string }
+        channel_url: { type: string }
+        thumbnail: { type: string }
+
+    VideoRefreshResult:
+      type: object
+      properties:
+        videosAdded:
+          type: array
+          items: { $ref: "#/components/schemas/Video" }
+        videosFounded:
+          type: array
+          items: { $ref: "#/components/schemas/Video" }
+          description: Vídeos que já existiam (duplicados por `url`)
+        errors:
+          type: array
+          items:
+            type: object
+            description: >
+              Forma varia por caso — canal não encontrado (`errorMessage`, `title`,
+              `url`, `channel`, `channel_url`, `thumbnail`) ou exceção crua capturada.
+
+    SearchResult:
+      type: object
+      properties:
+        value: { type: string, example: ifNSDGgBV94 }
+        label: { type: string, example: "Mayk Brito, Student Experience at Rocketseat" }
+        type:
+          type: string
+          enum: [video, channel]
+
+    ArrayOfSearchResult:
+      type: array
+      items: { $ref: "#/components/schemas/SearchResult" }

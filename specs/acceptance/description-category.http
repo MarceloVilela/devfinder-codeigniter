@@ -1,0 +1,5 @@
+### GET /description/category
+# Esperado: 200, Content-Type text/html, corpo = descricoes por categoria unidas com `\n`
+# (decisao 4 de specs/fase-3-endpoints-leitura.md — normalizado, NAO o
+# Array.prototype.toString / virgula-sem-espaco do res.send(array) original).
+GET {{baseUrl}}/description/category

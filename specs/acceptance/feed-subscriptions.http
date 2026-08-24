@@ -1,0 +1,10 @@
+### GET /feed/subscriptions — sem token
+# Esperado: 401 (requiredAuthorizer, rota nao tem branch anonimo diferente de /feed/trending).
+GET {{baseUrl}}/feed/subscriptions
+
+### GET /feed/subscriptions — autenticado
+# Esperado: 200, {docs, total, itemsPerPage}, docs so de videos de canais em Dev.follow do
+# autenticado (fan-out N Query GSI1, decisao #4 de fase-1-data-model.md), mais recentes
+# primeiro.
+GET {{baseUrl}}/feed/subscriptions?page=1
+Authorization: Bearer {{authToken}}

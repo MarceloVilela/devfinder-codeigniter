@@ -1,0 +1,74 @@
+Execução real dos 9 arquivos .http da Fase 3 contra http://localhost:8081 (Docker Compose
+local, ambiente "local" de http-client.env.json), via `npx httpyac send *.http --env local
+--all` — não uma alegação em prosa, saída real do client. Ver specs/fase-3-endpoints-leitura.md,
+seção "Validação manual", pra contexto. Gerado em 2026-08-24.
+
+Comando exato:
+  cd specs/acceptance
+  npx --yes httpyac send devs-index.http dev-show.http channels-index.http \
+    channel-show.http feed-trending.http feed-channel.http video-show.http \
+    description-feed.http description-category.http --env local --all -o short
+
+Resultado: 19 requests executáveis (as seções sem "GET http://..." abaixo são comentários —
+casos adiados pra Fase 4, ou notas sem request real), 19/19 com HTTP 200.
+
+=== GET /devs — page 1 (fixture sintética da Fase 3: 35 devs, ver AcceptanceDevSeeder) ===
+GET http://localhost:8081/v1/devs?page=1
+=> 200 (34 ms, 12.9 kB)
+=== GET /devs — page 2 (resto: 35 - 30 = 5, dev05..dev01) ===
+GET http://localhost:8081/v1/devs?page=2
+=> 200 (16 ms, 2.6 kB)
+=== GET /devs — sem page (default = 1, mesmo resultado do primeiro caso) ===
+GET http://localhost:8081/v1/devs
+=> 200 (32 ms, 12.9 kB)
+=== GET /devs — personalizado (auth) — ainda não executável ===
+=== GET /devs/{username} — encontrado (fixture sintética, ver AcceptanceReactionSeeder) ===
+GET http://localhost:8081/v1/devs/dev01
+=> 200 (8 ms, 687 B)
+=== GET /devs/{username} — não encontrado ===
+GET http://localhost:8081/v1/devs/nobody
+=> 200 (7 ms, 312 B)
+=== GET /channels ===
+GET http://localhost:8081/v1/channels
+=> 200 (9 ms, 1.34 kB)
+=== GET /channels/{searchQuery} — encontrado por nome ===
+GET http://localhost:8081/v1/channels/Canal%20Alpha
+=> 200 (7 ms, 769 B)
+=== GET /channels/{searchQuery} — não encontrado ===
+GET http://localhost:8081/v1/channels/nao-existe
+=> 200 (7 ms, 312 B)
+=== Busca por link — funciona na query SQL, mas não é exercitável via este path ===
+=== GET /feed/trending — page 1 (fixture sintética: 55 vídeos, ver AcceptanceVideoSeeder) ===
+GET http://localhost:8081/v1/feed/trending?page=1
+=> 200 (7 ms, 15.52 kB)
+=== GET /feed/trending — page 2 (resto: 55 - 30 = 25 — 5 de Beta + 20 de Alpha) ===
+GET http://localhost:8081/v1/feed/trending?page=2
+=> 200 (8 ms, 13.09 kB)
+=== GET /feed/trending — page além do fim ===
+GET http://localhost:8081/v1/feed/trending?page=99
+=> 200 (7 ms, 13.09 kB)
+=== GET /feed/trending — personalizado (auth) — ainda não executável ===
+=== GET /feed/channel?channel_name= — page 1 (Canal Beta, 35 vídeos > 1 página) ===
+GET http://localhost:8081/v1/feed/channel?channel_name=Canal%20Beta&page=1
+=> 200 (8 ms, 15.52 kB)
+=== GET /feed/channel?channel_name= — page 2 (resto: 35 - 30 = 5) ===
+GET http://localhost:8081/v1/feed/channel?channel_name=Canal%20Beta&page=2
+=> 200 (7 ms, 2.9 kB)
+=== GET /feed/channel?channel_name= — canal com 1 página só (Canal Alpha, 20 vídeos) ===
+GET http://localhost:8081/v1/feed/channel?channel_name=Canal%20Alpha
+=> 200 (8 ms, 10.56 kB)
+=== GET /feed/channel?channel_name= — canal inexistente ===
+GET http://localhost:8081/v1/feed/channel?channel_name=NaoExiste
+=> 200 (6 ms, 366 B)
+=== GET /video/{idYoutubeWatch} — encontrado (fixture sintética, ver AcceptanceVideoSeeder) ===
+GET http://localhost:8081/v1/video/vidalpha01
+=> 200 (7 ms, 711 B)
+=== GET /video/{idYoutubeWatch} — não encontrado ===
+GET http://localhost:8081/v1/video/does-not-exist
+=> 200 (6 ms, 312 B)
+=== GET /description/feed ===
+GET http://localhost:8081/v1/description/feed
+=> 200 (7 ms, 444 B)
+=== GET /description/category ===
+GET http://localhost:8081/v1/description/category
+=> 200 (6 ms, 829 B)

@@ -62,6 +62,24 @@ de bibliotecas (números variam por fonte, na casa dos milhares).
   imagens PHP-FPM/Nginx/MySQL diretamente (conhecimento já disponível, sem necessidade de MCP
   para isso). O Context7 continua relevante **dentro** do container, para a sintaxe do
   CodeIgniter em si (Model, rotas, migrations, filtros).
+- **É realmente gratuito? Verificado 2026-08-24** (WebSearch + fetch direto de
+  `context7.com/plans`, não suposição — pergunta do usuário: "vai ser realmente free?").
+  Plano **Free = US$ 0**, sem menção de cobrança automática/upgrade forçado em nenhuma fonte
+  consultada. Uso real desta sessão (`resolve-library-id`, `query-docs`, algumas dezenas de
+  chamadas ao longo das Fases 0–3) não pediu API key nem cartão em nenhum momento —
+  `npx -y @upstash/context7-mcp` funciona sem autenticação, só com limite mais baixo.
+  **Limites do Free** (fonte: `context7.com/plans`, mais
+  [InfoQ-style coverage via DevGenius](https://blog.devgenius.io/context7-quietly-slashed-its-free-tier-by-92-16fa05ddce03)
+  sobre o corte): **1.000 chamadas/mês** (cortado de ~6.000 em janeiro de 2026 — mesmo padrão
+  de corte-sem-aviso-público já visto com o Oracle Cloud Always Free, ver item 1) + **60
+  chamadas/hora** + 20 chamadas-bônus/dia quando bloqueado por limite mensual. Sem API key: dá
+  pra usar, com limite ainda mais conservador; com API key gratuita (`context7.com/dashboard`)
+  o limite sobe, ainda dentro do plano Free. **Não é "sempre-gratuito" no sentido da Regra de
+  custo do `CLAUDE.md`** (que é sobre *hospedagem*, item 1 acima) — é uma ferramenta de
+  desenvolvimento (MCP), não algo que vai pro ar em produção; a régua aqui é só "custa dinheiro
+  ou não", e a resposta verificada é **não custa**, com cota mensal, não trial que expira. Se a
+  cota mensal virar problema real (uso intenso numa fase futura), a alternativa é pedir a API
+  key gratuita (ainda US$ 0) antes de considerar o plano Pro (US$ 10/mês).
 
 ## 3. Skill de agente para CodeIgniter
 

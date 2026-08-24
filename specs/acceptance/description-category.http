@@ -1,5 +1,10 @@
 ### GET /description/category
-# Esperado: 200, Content-Type text/html, corpo = descricoes por categoria unidas com `\n`
-# (decisao 4 de specs/fase-3-endpoints-leitura.md — normalizado, NAO o
-# Array.prototype.toString / virgula-sem-espaco do res.send(array) original).
+# Esperado: 200, Content-Type text/html, corpo = descrições por categoria unidas com `\n`.
+# Decisão desta fase (o contrato original era ambíguo aqui — ver "Decisões em aberto" em
+# `../fase-0-openapi.yaml` e `../../plan.md`): normalizado com `\n`, NÃO o
+# `Array.prototype.toString()` (vírgula sem espaço) que o `res.send(array)` do Express
+# original produz — o contrato nunca documentou um formato exato a preservar, e o `\n` é a
+# escolha óbvia pra um endpoint que devolve texto encadeado.
+# Fixture sintética da Fase 3: 2 categorias ("Educação" com Canal Beta, "Tecnologia" com
+# Canal Alpha), ordenadas por nome de categoria.
 GET {{baseUrl}}/description/category

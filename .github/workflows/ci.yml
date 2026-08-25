@@ -73,6 +73,12 @@ jobs:
             echo "database.tests.charset = utf8mb4"
             echo "database.tests.DBCollat = utf8mb4_0900_ai_ci"
             echo "encryption.key = hex2bin:$(openssl rand -hex 16)"
+            # Achado real (Fase 7, reproduzido rodando o CI localmente antes do PR, ver
+            # CLAUDE.md): sem isso, Config\Auth::$jwtSecret fica '' (default do código) e
+            # qualquer teste de feature que gera um JWT real (FeatureTestCase::authHeaders())
+            # quebra com "DomainException: Provided key is too short" do firebase/php-jwt —
+            # 11 dos 30 testes falhavam por causa disso, não por bug no código de teste.
+            echo "auth.jwtSecret = $(openssl rand -hex 32)"
           } >> .env
 
       - name: Run migrations (default connection)

@@ -4,6 +4,7 @@ namespace Config;
 
 use App\Libraries\Log\JsonFileHandler;
 use CodeIgniter\Config\BaseConfig;
+use CodeIgniter\Log\Handlers\ErrorlogHandler;
 use CodeIgniter\Log\Handlers\HandlerInterface;
 
 class Logger extends BaseConfig
@@ -126,18 +127,17 @@ class Logger extends BaseConfig
         // ],
 
         /*
-         * The ErrorlogHandler writes the logs to PHP's native `error_log()` function.
-         * Uncomment this block to use it.
+         * ErrorlogHandler (Fase 7.5, achado do troubleshooting do 500 em /v1/feed/trending
+         * no Render) — o free tier do Render não tem Shell (só nos planos pagos), então o
+         * arquivo de log do JsonFileHandler acima (writable/logs/*.json.log) fica inacessível
+         * em produção. TYPE_SAPI manda pro error log do php-fpm, que o supervisord.conf já
+         * redireciona pro stderr do container — e esse sim aparece no stream de logs do
+         * Render, sem precisar de Shell. Ver specs/deploy/fase-7-deploy-render.md,
+         * "Troubleshooting — 500 em /v1/feed/trending".
          */
-        // 'CodeIgniter\Log\Handlers\ErrorlogHandler' => [
-        //     /* The log levels this handler can handle. */
-        //     'handles' => ['critical', 'alert', 'emergency', 'debug', 'error', 'info', 'notice', 'warning'],
-        //
-        //     /*
-        //     * The message type where the error should go. Can be 0 or 4, or use the
-        //     * class constants: `ErrorlogHandler::TYPE_OS` (0) or `ErrorlogHandler::TYPE_SAPI` (4)
-        //     */
-        //     'messageType' => 0,
-        // ],
+        ErrorlogHandler::class => [
+            'handles' => ['critical', 'alert', 'emergency', 'error'],
+            'messageType' => ErrorlogHandler::TYPE_SAPI,
+        ],
     ];
 }

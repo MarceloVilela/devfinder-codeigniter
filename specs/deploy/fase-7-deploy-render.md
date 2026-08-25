@@ -138,24 +138,25 @@ consegue fazer isso pelo usuário:
 - [x] **Criar o Web Service** a partir do `render.yaml` (Render detecta o Blueprint
       automaticamente ao conectar o repo, ou New → Blueprint no dashboard).
 - [x] **Preencher os env vars marcados `sync: false`** no dashboard do Render (nunca vão pro
-      `render.yaml`/git):
-  - `database.tidbcloud.hostname`, `database.tidbcloud.username`, `database.tidbcloud.password`
+      `render.yaml`/git). ⚠️ **Chaves com underscore, não ponto** (`database_tidbcloud_hostname`,
+      não `database.tidbcloud.hostname`) — achado real, ver seção "Causa raiz real" abaixo: o
+      Render descarta silenciosamente qualquer env var com ponto no nome (a UI deixa salvar,
+      sem erro, mas o valor nunca chega no container). O `.env` local continua com ponto, sem
+      mudança — é só a convenção pro dashboard do Render:
+  - `database_tidbcloud_hostname`, `database_tidbcloud_username`, `database_tidbcloud_password`
     — as credenciais reais do TiDB Cloud já testadas (mesmas do `.env` local, grupo
     `tidbcloud`)
-  - `encryption.key` — gerar um valor novo e próprio pra produção (`openssl rand -hex 32`
+  - `encryption_key` — gerar um valor novo e próprio pra produção (`openssl rand -hex 32`
     prefixado com `hex2bin:`), **não reaproveitar** o valor de dev local
-  - `auth.jwtSecret` — idem, gerar novo (`openssl rand -hex 32`)
-  - `videorefresh.jsonbinApiKey` / `videorefresh.jsonbinIdSubs` — reaproveitar os mesmos do
+  - `auth_jwtSecret` — idem, gerar novo (`openssl rand -hex 32`)
+  - `videorefresh_jsonbinApiKey` / `videorefresh_jsonbinIdSubs` — reaproveitar os mesmos do
     `.env` local (mesmo bin JSONBin.io)
-  - `auth.githubClientId` / `auth.githubClientSecret` — ver próximo item antes de preencher
-  - `app.baseURL` / `auth.webURL` — só dá pra saber depois do 1º deploy, quando o Render atribui
+  - `auth_githubClientId` / `auth_githubClientSecret` — ver próximo item antes de preencher
+  - `app_baseURL` / `auth_webURL` — só dá pra saber depois do 1º deploy, quando o Render atribui
     o subdomínio `https://<nome-do-serviço>.onrender.com/`
-  - ⚠️ **`database.defaultGroup`** (valor `tidbcloud`) — achado real (ver seção "Causa raiz
-    confirmada" abaixo): mesmo **não** sendo `sync: false` (o valor já vem fixo no
-    `render.yaml`), o Blueprint não aplicou essa var automaticamente no serviço — teve que ser
-    adicionada manualmente. Não confiar que campos com valor fixo no código chegam sozinhos;
-    depois de criar o Web Service, conferir a lista *completa* de env vars na aba Environment
-    contra o `render.yaml` inteiro, não só as chaves `sync: false`.
+  - `database_defaultGroup` (valor `tidbcloud`) já vem fixo no `render.yaml` (não é
+    `sync: false`), mas ainda assim vale conferir na aba Environment que existe com esse nome
+    novo — variáveis antigas com ponto não são renomeadas sozinhas quando o `render.yaml` muda.
 - [ ] **Criar (ou editar) o GitHub OAuth App** em github.com/settings/developers com
       *Authorization callback URL* = `https://<seu-app>.onrender.com/v1/auth/github/callback`
       — domínio diferente do de dev local (`localhost:8081`), precisa de callback próprio. Só
@@ -286,8 +287,45 @@ conferir a lista *completa* de env vars na aba Environment contra o `render.yaml
 mesmo as que já têm valor fixo no código.
 
 Corrigido manualmente pelo usuário (adicionou `database.defaultGroup=tidbcloud` direto na aba
-Environment do dashboard) — Render redeployando de novo no momento em que este parágrafo foi
-escrito. Resultado da verificação pós-fix ainda não coletado.
+Environment do dashboard) — Render redeployou de novo. **Resultado: o 500 continuou,
+stack trace idêntico** (`localhost:3306`, mesmo depois de conferir por screenshot que a chave
+estava lá, escrita certa, sem typo). O parágrafo acima (`preDeployCommand`/campo do Blueprint
+"não replicado") estava **incompleto** — não era caso a caso, a causa é estrutural, ver abaixo.
+
+## Causa raiz real — Render descarta env vars com ponto no nome (2026-08-25)
+
+Com a chave certa confirmada na UI e o erro persistindo idêntico, a hipótese "Blueprint não
+aplicou esse campo" não explicava mais nada — precisava de prova, não suposição. Criado um
+endpoint de diagnóstico temporário, `GET /v1/_debug/env`
+(`App\Controllers\DebugEnvController`, PRs #10 e #11, removido depois de usar) — não expõe
+nenhum valor/segredo, só lista *nomes* de chave visíveis via `getenv()`/`$_ENV`/`$_SERVER` em
+produção.
+
+**1ª rodada** (só filtrando por `database`): zero chaves em qualquer uma das três vias.
+
+**2ª rodada** (lista completa, sem filtro): `CI_ENVIRONMENT` e `PORT` (nomes sem ponto)
+aparecem normalmente. Nenhuma das ~15 variáveis com ponto no nome configuradas no dashboard
+(`database.*`, `auth.*`, `app.*`, `encryption.*`, `videorefresh.*`) aparece **em lugar
+nenhum** — nem `getenv()`, nem `$_ENV`, nem `$_SERVER`. Em compensação, variáveis do próprio
+Render com underscore (`RENDER_SERVICE_NAME`, `RENDER_GIT_COMMIT` etc.) e do `supervisord`
+(`SUPERVISOR_ENABLED`, `SUPERVISOR_PROCESS_NAME`) chegam normalmente até o worker do php-fpm —
+descarta qualquer teoria de `clear_env`/isolamento de processo do FPM. **Causa isolada: é
+especificamente o ponto (`.`) no nome da env var que o Render descarta silenciosamente** — a UI
+deixa digitar e salvar (sem erro, sem aviso), mas o valor nunca chega no container em runtime.
+Comportamento documentado como comum em plataformas construídas sobre Kubernetes (nomes de env
+var normalmente restritos a `[A-Za-z_][A-Za-z0-9_]*`) — `KUBERNETES_SERVICE_HOST` e
+`KUBERNETES_PORT_*` aparecem na lista de env vars do container, confirmando que a infra do
+Render roda sobre K8s por baixo.
+
+**Corrigido sem tocar em `Config\Database`/`Config\Auth`/etc.**: o próprio CodeIgniter 4 já
+previa esse tipo de restrição de plataforma — `BaseConfig::getEnvValue()`
+(`vendor/codeigniter4/framework/system/Config/BaseConfig.php`) tenta a forma com ponto (usada
+pelo `.env` local, continua igual) **e**, como fallback, a forma com underscore no lugar de
+cada ponto (`database_tidbcloud_hostname` em vez de `database.tidbcloud.hostname`). Bastou
+reescrever as chaves do `render.yaml` pra underscore — nenhuma mudança de código de app. O
+usuário precisa recriar as variáveis `sync: false` no dashboard com o nome novo (o Render não
+renomeia entradas existentes sozinho quando o `render.yaml` muda a chave) — as antigas com
+ponto podem ser apagadas depois de confirmado que o novo deploy funciona.
 
 ## Conclusão
 

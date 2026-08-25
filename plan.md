@@ -279,6 +279,16 @@ contra Docker Compose local (evidência já registrada nas Fases 3/5/6, ver
 `specs/acceptance/execucao-fase-*.log`). O checklist de paridade funcional contra produção do
 frontend real não se aplica (ver decisão de escopo acima). PR mergeado.
 
+**Verificação contra o host real — feita** (2026-08-25, host real = Render, ver
+`specs/deploy/fase-7-deploy-render.md`): `npx httpyac send *.http --env real --all` a partir
+de `specs/acceptance/`, evidência em `specs/acceptance/execucao-fase-7-render.log`. Replicável
+por qualquer sessão futura rodando os mesmos `.http` desta pasta contra o ambiente `real` de
+`http-client.env.json` (`baseUrl` já preenchido, versionado; só falta popular
+`authToken`/`ghostAuthToken` de `real` em `http-client.private.env.json`, gitignored — ver
+`specs/acceptance/README.md`). Atenção: rodar os `.http` de escrita contra `real` grava dados
+de teste de verdade no banco de produção (sem fixture sintética lá, ao contrário do Docker
+Compose local) — ver o log pra lista completa do que foi criado nessa execução.
+
 ---
 
 ## Riscos e trade-offs a documentar durante a execução

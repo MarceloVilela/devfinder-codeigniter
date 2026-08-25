@@ -26,14 +26,20 @@ class Jwt
         $this->expirySeconds = $config->jwtExpirySeconds;
     }
 
-    public function encode(string $username): string
+    /**
+     * @param int|null $expirySecondsOverride sobrescreve `auth.jwtExpirySeconds` só pra esta
+     *                                         chamada — usado por `spark token:mint` pra gerar
+     *                                         tokens de serviço com validade diferente da do
+     *                                         login normal (ver App\Commands\TokenMint).
+     */
+    public function encode(string $username, ?int $expirySecondsOverride = null): string
     {
         $now = time();
 
         return FirebaseJwt::encode([
             'username' => $username,
             'iat'      => $now,
-            'exp'      => $now + $this->expirySeconds,
+            'exp'      => $now + ($expirySecondsOverride ?? $this->expirySeconds),
         ], $this->secret, 'HS256');
     }
 

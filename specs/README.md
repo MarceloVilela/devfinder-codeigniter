@@ -26,7 +26,7 @@ repositório.
 | 4 | Autenticação (GitHub OAuth + JWT via Filters) | ✅ gerada 2026-08-24 — validada contra Docker Compose local, pendente PR |
 | 5 | Endpoints autenticados de escrita e relacionamento | ✅ gerada 2026-08-24 — 25/25 requests validadas, pendente PR |
 | 6 | Ingestão em lote (`spark` command + cron) | ✅ gerada 2026-08-24 — escopo vídeo apenas (canal descoped, decisão do usuário), testada contra o bin real de produção, pendente PR |
-| 7 | Observabilidade, testes e corte (cutover) | ⬜ não iniciada |
+| 7 | Observabilidade, testes e corte (cutover) | ✅ itens 7.1–7.3 gerados 2026-08-24 — cutover descoped (decisão do usuário), pendente PR |
 
 Fase 0 (PR #1), Fase 1 (PR #2) e Fase 2 (PR #3) encerradas e mergeadas em 2026-08-24. Fase 3
 (endpoints públicos de leitura — 9 rotas, ver `fase-3-endpoints-leitura.md`) executada no
@@ -66,7 +66,21 @@ achado real do framework (prefixo de `.env` do `Config\BaseConfig` é o nome da 
 minúsculas, não camelCase — `videorefresh.*`, não `videoRefresh.*`) + reconfirmação do achado
 de nome de campo (`channel_name` do bin vs. `channel` do contrato HTTP) já visto no projeto
 irmão. Host real continua adiado (`infra-pending.md`); runbook de cron documentado pra quando
-existir. Próximo passo: Fase 7 (observabilidade + cutover).
+existir.
+
+Fase 7 (observabilidade e testes — itens 7.1/7.2/7.3, cutover descoped por decisão do usuário
+mesma que `../serverless`, ver `fase-7-observabilidade-testes.md`) gerada no mesmo dia: **7.1**
+`App\Libraries\Log\JsonFileHandler` (1 objeto JSON por linha, substitui o `FileHandler`
+padrão do CI4); **7.2** 30 testes de feature (`tests/feature/`) reaproveitando o
+`AcceptanceSeeder` das Fases 3/5, rodando contra `database.tests` (infra já provisionada
+desde a Fase 2/3), exit code 0 conferido explicitamente; **7.3** `autocannon` contra
+`GET /devs`/`GET /feed/trending` (banco com o dump real de 500 vídeos). 2 achados reais: (1)
+`AuthContext` (serviço compartilhado) vaza entre requests simuladas do `FeatureTestTrait`
+dentro do mesmo processo PHPUnit — corrigido resetando o serviço em `setUp()`; (2) N+1 real em
+`GET /devs` (126 queries por request, `DevPresenter::present()` roda 4 queries por Dev) vs. 6
+queries em `GET /feed/trending` (JOIN único) — registrado como candidato de otimização futura,
+não corrigido nesta fase (fora do critério de aceite: "documentar latência real", não
+otimizar).
 
 ## Artefatos gerados
 
@@ -82,3 +96,4 @@ existir. Próximo passo: Fase 7 (observabilidade + cutover).
 | `fase-4-endpoints-auth.md` | ✅ gerado e **fluxo OAuth real confirmado** 2026-08-24 (Fase 4) — GitHub OAuth + JWT (`firebase/php-jwt`) via `RequiredAuthFilter`/`OptionalAuthFilter`, `DevModel::findOrCreate`, personalização reativada em `/devs`/`/feed/trending`. Decisões reaproveitadas do projeto irmão (payload `{username}`, `?user=` preservado) + 4 achados novos (prefixo `hex2bin:` não é genérico, Filters do CI4 sem o problema de `identitySource` do API Gateway, divergência 401 vs 400 em `/me`, scope do GitHub OAuth corrigido pra paridade). Validado com JWT sintético **e** login real no GitHub (usuário cadastrou OAuth App, `GET /me` retornou dado real). |
 | `fase-5-escrita-relacionamentos.md` | ✅ gerado 2026-08-24 (Fase 5) — 13 endpoints de escrita (`POST /devs`, `/channels`, `/video`, 4 pares like/dislike/follow/ignore + 2 GET de listagem), 2 bugs reais corrigidos no design (Dev.create sem username no original, AddChannel incompleto no OpenAPI) + 3 bugs reais do framework encontrados rodando (`*/g` em PHPDoc, `find(false)` devolvendo tabela inteira, placeholder `{id}` de `is_unique`). 25/25 requests validadas via `httpyac` contra banco limpo. |
 | `fase-6-ingestao-lote.md` | ✅ gerado 2026-08-24 (Fase 6) — escopo vídeo apenas (canal descoped, decisão do usuário), `App\Libraries\VideoIngestor` compartilhado entre `php spark video:refresh` (cron) e `POST /video/refresh` (HTTP), testado contra o bin real do JSONBin.io (`candidatos=50 added=20 duplicated=30 errors=0`, mesmos números da AWS real do projeto irmão), 1 achado real do framework (prefixo `.env` do `Config\BaseConfig` em minúsculas). |
+| `fase-7-observabilidade-testes.md` | ✅ gerado 2026-08-24 (Fase 7, itens 7.1–7.3) — logs JSON estruturados (`JsonFileHandler`), 30 testes de feature no CI (`tests/feature/`), testes de carga (`autocannon`). 2 achados reais: `AuthContext` vazando entre requests simuladas do harness de teste (corrigido), N+1 em `GET /devs` (126 queries vs. 6 em `feed/trending`, registrado como candidato futuro). Cutover (`devfinder-next`) descoped por decisão do usuário. |

@@ -1,0 +1,46 @@
+# Render Blueprint — declara a config de build/deploy do web service como código, mesma
+# disciplina spec-driven do resto do projeto. NÃO contém segredos: variáveis marcadas
+# `sync: false` precisam ser preenchidas manualmente no dashboard do Render (ver o todolist em
+# specs/deploy/fase-7-deploy-render.md).
+services:
+  - type: web
+    name: devfinder-codeigniter
+    runtime: docker
+    plan: free
+    dockerfilePath: ./docker/render/Dockerfile
+    dockerContext: .
+    healthCheckPath: /
+    preDeployCommand: php spark migrate --no-interaction
+    envVars:
+      - key: CI_ENVIRONMENT
+        value: production
+      - key: app.baseURL
+        sync: false # https://<seu-servico>.onrender.com/ — só se sabe depois do 1º deploy
+      - key: database.defaultGroup
+        value: tidbcloud
+      - key: database.tidbcloud.hostname
+        sync: false
+      - key: database.tidbcloud.database
+        value: devfinder
+      - key: database.tidbcloud.username
+        sync: false
+      - key: database.tidbcloud.password
+        sync: false
+      - key: database.tidbcloud.port
+        value: "4000"
+      - key: encryption.key
+        sync: false
+      - key: auth.jwtSecret
+        sync: false
+      - key: auth.jwtExpirySeconds
+        value: "604800"
+      - key: auth.githubClientId
+        sync: false
+      - key: auth.githubClientSecret
+        sync: false
+      - key: auth.webURL
+        sync: false
+      - key: videorefresh.jsonbinApiKey
+        sync: false
+      - key: videorefresh.jsonbinIdSubs
+        sync: false

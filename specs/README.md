@@ -23,10 +23,10 @@ repositório.
 | 1 | Especificação de dados (MySQL relacional) | ✅ encerrada — mergeada 2026-08-24 (PR #2) |
 | 2 | Infraestrutura base (scaffold + Docker + deploy real) | ✅ mergeada (PR #3) — host real ainda adiado (decisão do usuário) |
 | 3 | Migração dos endpoints públicos de leitura | ✅ mergeada (PR #4) |
-| 4 | Autenticação (GitHub OAuth + JWT via Filters) | ✅ gerada 2026-08-24 — validada contra Docker Compose local, pendente PR |
-| 5 | Endpoints autenticados de escrita e relacionamento | ✅ gerada 2026-08-24 — 25/25 requests validadas, pendente PR |
-| 6 | Ingestão em lote (`spark` command + cron) | ✅ gerada 2026-08-24 — escopo vídeo apenas (canal descoped, decisão do usuário), testada contra o bin real de produção, pendente PR |
-| 7 | Observabilidade, testes e corte (cutover) | ✅ itens 7.1–7.3 gerados 2026-08-24 — cutover descoped (decisão do usuário), pendente PR |
+| 4 | Autenticação (GitHub OAuth + JWT via Filters) | ✅ mergeada (PR #5) — validada contra Docker Compose local e, depois, login real no GitHub |
+| 5 | Endpoints autenticados de escrita e relacionamento | ✅ mergeada (PR #6) — 25/25 requests validadas |
+| 6 | Ingestão em lote (`spark` command + cron) | ✅ mergeada (PR #7) — escopo vídeo apenas (canal descoped, decisão do usuário), testada contra o bin real de produção; cron via GitHub Actions (`.github/workflows/video-refresh.yml`) implementado 2026-08-25 |
+| 7 | Observabilidade, testes e corte (cutover) | ✅ mergeada (PR #8/#9) — itens 7.1–7.3, cutover descoped (decisão do usuário); casos de aceite verificados contra o deploy real (Render) em 2026-08-25, ver `acceptance/execucao-fase-7-render.log` |
 
 Fase 0 (PR #1), Fase 1 (PR #2) e Fase 2 (PR #3) encerradas e mergeadas em 2026-08-24. Fase 3
 (endpoints públicos de leitura — 9 rotas, ver `fase-3-endpoints-leitura.md`) executada no
@@ -81,6 +81,17 @@ dentro do mesmo processo PHPUnit — corrigido resetando o serviço em `setUp()`
 queries em `GET /feed/trending` (JOIN único) — registrado como candidato de otimização futura,
 não corrigido nesta fase (fora do critério de aceite: "documentar latência real", não
 otimizar).
+
+**Verificação contra o host real feita em 2026-08-25** (Render, ver
+`deploy/fase-7-deploy-render.md`): `npx httpyac send *.http --env real --all` a partir de
+`specs/acceptance/`, evidência em `acceptance/execucao-fase-7-render.log`. É replicável por
+qualquer sessão futura rodando os mesmos `.http` desta pasta — só precisa popular
+`authToken`/`ghostAuthToken` do ambiente `real` em `acceptance/http-client.private.env.json`
+(gitignored, ver `acceptance/README.md`); o `baseUrl` já está versionado em
+`acceptance/http-client.env.json`. 1 achado real reconfirmado (não novo): `GET
+/feed/subscriptions` → 404, rota nunca implementada (gap já sabido desde a Fase 3). Atenção:
+os `.http` de escrita rodados contra `real` gravam dados de teste de verdade no banco de
+produção (sem a fixture sintética do Docker Compose local lá) — ver o log pra lista completa.
 
 ## Artefatos gerados
 

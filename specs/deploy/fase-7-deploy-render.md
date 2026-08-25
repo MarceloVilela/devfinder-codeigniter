@@ -107,7 +107,7 @@ citado como padrão na pesquisa original do usuário (repo `PHDeploy`, PHP-FPM +
 | `docker/render/nginx.conf.template` | Bloco `server` do nginx com `listen ${PORT};` — porta não é fixa no Render, é injetada em runtime. `fastcgi_pass 127.0.0.1:9000` (mesmo container, não `app:9000` como no compose local). |
 | `docker/render/supervisord.conf` | Roda `php-fpm` e `nginx -g "daemon off;"` como dois processos do mesmo container (Render não aceita múltiplos containers via compose). |
 | `docker/render/entrypoint.sh` | `envsubst '${PORT}'` (só essa variável — sem a lista explícita, substituiria também `$uri`/`$document_root` do próprio nginx) renderiza o template com o `$PORT` real, depois `exec supervisord`. |
-| `render.yaml` (raiz do repo) | Blueprint do Render — declara `dockerfilePath`, `healthCheckPath: /`, `preDeployCommand: php spark migrate --no-interaction` e a lista de env vars como código. Segredos ficam `sync: false` (preenchidos manualmente no dashboard, nunca versionados) — ver todolist abaixo. |
+| `render.yaml` (raiz do repo) | Blueprint do Render — declara `dockerfilePath`, `healthCheckPath: /`, `preDeployCommand: php spark migrate --no-interaction` (⚠️ **ignorado no plano free** — recurso pago, ver todolist abaixo) e a lista de env vars como código. Segredos ficam `sync: false` (preenchidos manualmente no dashboard, nunca versionados) — ver todolist abaixo. |
 
 **Testado de verdade (2026-08-25), não só validado por leitura do Dockerfile**:
 
@@ -133,11 +133,11 @@ Tudo que é código/config já está pronto (arquivos acima + `render.yaml`). O 
 inerentemente manual — conta de terceiro, segredos, cliques em dashboard — nenhum agente
 consegue fazer isso pelo usuário:
 
-- [ ] **Criar conta no Render** (render.com) e conectar o repositório GitHub
+- [x] **Criar conta no Render** (render.com) e conectar o repositório GitHub
       (`devfinder-codeigniter`) — autoriza o Render a ler o repo pra build.
-- [ ] **Criar o Web Service** a partir do `render.yaml` (Render detecta o Blueprint
+- [x] **Criar o Web Service** a partir do `render.yaml` (Render detecta o Blueprint
       automaticamente ao conectar o repo, ou New → Blueprint no dashboard).
-- [ ] **Preencher os env vars marcados `sync: false`** no dashboard do Render (nunca vão pro
+- [x] **Preencher os env vars marcados `sync: false`** no dashboard do Render (nunca vão pro
       `render.yaml`/git):
   - `database.tidbcloud.hostname`, `database.tidbcloud.username`, `database.tidbcloud.password`
     — as credenciais reais do TiDB Cloud já testadas (mesmas do `.env` local, grupo
@@ -155,10 +155,20 @@ consegue fazer isso pelo usuário:
       — domínio diferente do de dev local (`localhost:8081`), precisa de callback próprio. Só
       depois desse passo dá pra preencher `auth.githubClientId`/`auth.githubClientSecret` no
       Render.
-- [ ] **Confirmar `preDeployCommand`** no dashboard do Render após o 1º deploy — o
-      `render.yaml` já declara `php spark migrate --no-interaction`, mas confirmar que o campo
-      foi aplicado (Blueprints nem sempre replicam 100% dos campos automaticamente,
-      dependendo da versão da UI do Render).
+- [x] **`preDeployCommand` — confirmado que NÃO roda no plano free** (2026-08-25). A doc
+      oficial do Render (`render.com/docs/deploys`) é explícita: *"The pre-deploy command is
+      available for paid web services, private services, and background workers"* — recurso
+      pago, não existe no free tier, independente do que `render.yaml` declara (o campo é
+      aceito no Blueprint mas ignorado silenciosamente no plano free, não dá erro nem aviso).
+      **Não bloqueia esse deploy específico**: as migrations já tinham rodado manualmente,
+      local, direto contra o TiDB Cloud, antes do deploy (ver "Obstáculo nº1 resolvido" acima
+      — `docker run` de teste + `curl` retornando os 40 devs do seed real), e confirmado de
+      novo agora via `mysql` client (ver seção de Troubleshooting abaixo: 9 tabelas, 500
+      vídeos). **Bloqueia migrations futuras**: qualquer alteração de schema depois de hoje
+      precisa ser aplicada manualmente (`php spark migrate --no-interaction` local, apontando
+      pro grupo `tidbcloud`) antes de cada deploy que dependa dela — o `preDeployCommand` no
+      `render.yaml` fica como documentação de intenção, não como automação real, enquanto o
+      serviço estiver no free tier.
 - [ ] **(Opcional) Cron da ingestão** — Render free não tem cron nativo confiável; configurar
       um workflow do GitHub Actions com `schedule:` batendo em
       `POST https://<seu-app>.onrender.com/v1/video/refresh` (mesmo padrão já avaliado pro
@@ -167,6 +177,71 @@ consegue fazer isso pelo usuário:
 - [ ] **Verificar os casos de aceite reais** contra a URL do Render depois do deploy —
       `npx httpyac send specs/acceptance/*.http --env <novo-ambiente> --all`, mesmo padrão já
       usado nas Fases 3/5/6 (`CLAUDE.md`).
+
+## Troubleshooting — 500 em `/v1/feed/trending` (2026-08-25, em andamento)
+
+Após o 1º deploy: `GET /v1` responde `200` (`{"appname":"DevFinder"}`, sem tocar banco), mas
+`GET /v1/feed/trending` responde `500` com a página genérica "Whoops! We seem to have hit a
+snag" — página de erro de produção do CI4 (`CI_ENVIRONMENT=production` no `render.yaml` esconde
+o stack trace real do usuário final, por design).
+
+**Hipótese descartada**: migration não aplicada. (Motivo real, descoberto depois: o
+`preDeployCommand` do `render.yaml` nem roda no plano free do Render — ver todolist acima; as
+tabelas existem porque as migrations foram aplicadas manualmente antes do deploy, não por causa
+desse campo.) Verificado direto no TiDB Cloud, de fora do Render — `mysql` client
+via container Docker local (`mysql:8.4`), TLS com o mesmo `docker/tidbcloud/ca.pem` do código,
+credenciais do grupo `tidbcloud` do `.env`:
+
+```bash
+docker run --rm \
+  -v "$(pwd)/docker/tidbcloud/ca.pem:/ca.pem:ro" \
+  -e MYSQL_PWD='<senha do .env>' \
+  mysql:8.4 \
+  mysql -h gateway01.us-east-1.prod.aws.tidbcloud.com -P 4000 \
+    -u '<username do .env>' \
+    --ssl-ca=/ca.pem \
+    -D devfinder \
+    -e "SHOW TABLES; SELECT COUNT(*) AS total_videos FROM videos;"
+```
+
+Resultado: todas as 9 tabelas existem (`channel_reactions`, `channel_tag`, `channels`,
+`dev_reactions`, `devs`, `migrations`, `tags`, `videos`) e `videos` tem **500 linhas** — os
+dados de seed estão lá. Migration rodou, dado existe, conexão externa ao TiDB Cloud funciona.
+Logo o erro não é "banco vazio" nem "credencial errada" — é algo específico do runtime da
+aplicação dentro do container do Render (SQL que quebra em produção mas não nesse teste manual,
+erro de config, ou algo na cadeia nginx→php-fpm→CI4 só nesse ambiente).
+
+> Nota de segurança: o comando acima expõe a senha do banco em texto puro no shell local
+> (`MYSQL_PWD`) — aceitável pra diagnóstico pontual numa máquina de desenvolvimento confiável,
+> mas não deixar esse comando com a senha real em histórico de shell compartilhado/CI.
+
+**Tentativa 1 — Shell do Render, descartada**: a ideia original era ler o arquivo de log que o
+CI4 grava mesmo em produção (`writable/logs/log-<data>.log`, que não aparece no stream de logs
+do Render — esse só mostra stdout/stderr dos processos supervisionados, não arquivos dentro do
+container) via `tail` numa sessão de Shell do dashboard. **Verificado na prática**: Shell **não
+está disponível no plano free** do Render — a UI mostra "Upgrade your instance" (só nos planos
+pagos, Starter em diante). Sem acesso a shell nem a disco persistente pra baixar o arquivo,
+essa rota fica fechada enquanto o serviço estiver no free tier.
+
+**Tentativa 2 — `ErrorlogHandler` do CI4 (implementada em 2026-08-25)**: em vez de ler o
+arquivo de dentro do container, mandar o log de erro pro mesmo canal que o Render já expõe sem
+Shell — o stream de stdout/stderr. `app/Config/Logger.php` já vinha com um bloco
+`CodeIgniter\Log\Handlers\ErrorlogHandler` comentado no scaffold padrão do framework; habilitado
+agora com `messageType => ErrorlogHandler::TYPE_SAPI`, que usa `error_log()` do PHP endereçado
+pro log do próprio SAPI — no php-fpm isso cai no error log do FPM, e `docker/render/
+supervisord.conf` já redireciona o stderr do processo `php-fpm` pro stderr do container
+(`stderr_logfile=/dev/stderr`), que é exatamente o que aparece no stream de logs do Render.
+Handlers ativos em paralelo agora: `JsonFileHandler` (arquivo, inútil em produção sem Shell,
+mas mantido — útil no `docker-compose.yml` local, onde dá pra montar volume) +
+`ErrorlogHandler` (stderr, visível no Render free tier). `handles` limitado a
+`['critical', 'alert', 'emergency', 'error']` — mesmo nível que já passa pelo threshold de
+produção (`Config\Logger::$threshold = 4` quando `ENVIRONMENT === 'production'`), não muda o
+volume de log, só adiciona um destino a mais pro que já seria logado.
+
+**Ainda pendente**: commit + push desse ajuste, redeploy no Render (automático via push, dado
+o Blueprint), reproduzir o 500 batendo em `/v1/feed/trending` de novo, e ler o stack trace real
+na aba *Logs* do dashboard (não precisa mais de Shell). Resultado ainda não coletado nesta
+rodada.
 
 ## Conclusão
 

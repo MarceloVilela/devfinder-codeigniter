@@ -12,16 +12,14 @@ class DebugEnvController extends BaseController
 {
     public function env()
     {
-        $needle = 'database';
-
         return $this->response->setJSON([
-            'getenv_defaultGroup_dot'        => getenv('database.defaultGroup') !== false,
-            'getenv_defaultGroup_underscore' => getenv('database_defaultGroup') !== false,
-            'env_super_has_dot_key'          => array_key_exists('database.defaultGroup', $_ENV),
-            'server_super_has_dot_key'       => array_key_exists('database.defaultGroup', $_SERVER),
-            'getenv_keys_matching'           => array_values(array_filter(array_keys(getenv()), static fn ($k) => str_contains($k, $needle))),
-            'env_super_keys_matching'        => array_values(array_filter(array_keys($_ENV), static fn ($k) => str_contains($k, $needle))),
-            'server_super_keys_matching'     => array_values(array_filter(array_keys($_SERVER), static fn ($k) => str_contains($k, $needle))),
+            'getenv_CI_ENVIRONMENT' => getenv('CI_ENVIRONMENT') !== false ? getenv('CI_ENVIRONMENT') : null,
+            'getenv_PORT'           => getenv('PORT') !== false ? getenv('PORT') : null,
+            // Só nomes de chave, nenhum valor — diagnóstico de quais env vars custom (as que
+            // a gente setou no Render, não as de sistema/imagem) estão chegando de fato.
+            'all_getenv_keys'  => array_values(array_keys(getenv())),
+            'all_env_keys'     => array_values(array_keys($_ENV)),
+            'all_server_keys'  => array_values(array_keys($_SERVER)),
         ]);
     }
 }

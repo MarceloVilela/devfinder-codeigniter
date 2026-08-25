@@ -85,6 +85,29 @@ foi necessária nesta fase, só os testes em si.
 30/30 testes, 71 assertions, **exit code 0 conferido explicitamente** (não só "OK" visual —
 lição já registrada em `../CLAUDE.md` desde o incidente do PCOV na Fase 3).
 
+### Achado real nº2 — `auth.jwtSecret` ausente na reprodução *de verdade* do CI (2026-08-25)
+
+A frase acima ("reproduzindo o CI") descrevia rodar contra o mesmo MySQL do
+`docker-compose.yml` local — que já tinha `auth.jwtSecret` preenchido no `.env` de dev. Não era
+uma reprodução byte a byte do `.env` que o workflow gera de fato (`.github/workflows/ci.yml`,
+step "Configure environment"), e essa diferença escondia um bug real: **o workflow nunca seta
+`auth.jwtSecret`** — só `database.*` e `encryption.key`. Sem isso, `Config\Auth::$jwtSecret`
+fica no default do código (`''`), e qualquer teste que gera um JWT real via
+`FeatureTestCase::authHeaders()` quebra com `DomainException: Provided key is too short`
+(`firebase/php-jwt`).
+
+Reproduzido de verdade em 2026-08-25 (container `php:8.3-cli` + MySQL 8.4 de serviço numa rede
+Docker isolada, `.env` gerado linha por linha igual ao `.yml`, mesmo padrão que resolveu o
+incidente do PCOV): **11 dos 30 testes falhavam** com esse erro — todos os que chamam
+`authHeaders()` (`ChannelsTest`, parte de `DevsTest`/`ReactionsTest`/`VideoRefreshTest`/
+`VideosTest`). Corrigido adicionando `auth.jwtSecret = $(openssl rand -hex 32)` ao mesmo bloco
+`echo ... >> .env` do workflow. Re-testado: `OK (30 tests, 71 assertions)`, exit code 0.
+
+**Lição, reforçando a de `../CLAUDE.md`**: "reproduzir o CI" só vale a pena se a reprodução usar
+o `.env` que o workflow *de fato* gera, não um `.env` de dev local que por acaso tem mais chaves
+preenchidas — um `.env` "generoso demais" esconde exatamente esse tipo de bug (chave que o
+código de teste precisa, mas que só o workflow real deixa de fora).
+
 ## 7.3 — Testes de carga leves
 
 `npx autocannon -c 10 -d 15` contra Docker Compose local (banco seedado com o dump real —

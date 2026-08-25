@@ -2,6 +2,15 @@
 # disciplina spec-driven do resto do projeto. NÃO contém segredos: variáveis marcadas
 # `sync: false` precisam ser preenchidas manualmente no dashboard do Render (ver o todolist em
 # specs/deploy/fase-7-deploy-render.md).
+#
+# Chaves com UNDERSCORE, não ponto (achado real, 2026-08-25, ver
+# specs/deploy/fase-7-deploy-render.md, "Causa raiz confirmada"): o Render descarta
+# silenciosamente qualquer env var cujo nome tenha ponto — não chega no processo de jeito
+# nenhum (confirmado via endpoint de diagnóstico temporário, PRs #10/#11). O CodeIgniter 4 já
+# prevê isso: `BaseConfig::getEnvValue()` tenta a forma com ponto (`database.tidbcloud.hostname`
+# — a usada no `.env` local, sem mudança) E a forma com underscore
+# (`database_tidbcloud_hostname`) como fallback. Usar underscore aqui resolve sem tocar em
+# nenhum Config/*.php nem no `.env` de dev.
 services:
   - type: web
     name: devfinder-codeigniter
@@ -14,33 +23,33 @@ services:
     envVars:
       - key: CI_ENVIRONMENT
         value: production
-      - key: app.baseURL
+      - key: app_baseURL
         sync: false # https://<seu-servico>.onrender.com/ — só se sabe depois do 1º deploy
-      - key: database.defaultGroup
+      - key: database_defaultGroup
         value: tidbcloud
-      - key: database.tidbcloud.hostname
+      - key: database_tidbcloud_hostname
         sync: false
-      - key: database.tidbcloud.database
+      - key: database_tidbcloud_database
         value: devfinder
-      - key: database.tidbcloud.username
+      - key: database_tidbcloud_username
         sync: false
-      - key: database.tidbcloud.password
+      - key: database_tidbcloud_password
         sync: false
-      - key: database.tidbcloud.port
+      - key: database_tidbcloud_port
         value: "4000"
-      - key: encryption.key
+      - key: encryption_key
         sync: false
-      - key: auth.jwtSecret
+      - key: auth_jwtSecret
         sync: false
-      - key: auth.jwtExpirySeconds
+      - key: auth_jwtExpirySeconds
         value: "604800"
-      - key: auth.githubClientId
+      - key: auth_githubClientId
         sync: false
-      - key: auth.githubClientSecret
+      - key: auth_githubClientSecret
         sync: false
-      - key: auth.webURL
+      - key: auth_webURL
         sync: false
-      - key: videorefresh.jsonbinApiKey
+      - key: videorefresh_jsonbinApiKey
         sync: false
-      - key: videorefresh.jsonbinIdSubs
+      - key: videorefresh_jsonbinIdSubs
         sync: false

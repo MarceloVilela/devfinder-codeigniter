@@ -186,6 +186,11 @@ consegue fazer isso pelo usuário:
       `channel_name` → `channel` (achado da Fase 6, ver `app/Commands/VideoRefresh.php`) foi
       replicada em `jq` porque o endpoint HTTP não normaliza — só o Command `spark
       video:refresh` fazia isso antes.
+  - [x] **`workflow_dispatch` disparado manualmente e confirmado de ponta a ponta**
+        (2026-08-25): `Adicionados: 36 | Já existiam: 14 | Erros: 0` — JSONBin.io, o token
+        de serviço (`APP_API_TOKEN`) e o `POST /v1/video/refresh` real todos funcionando
+        juntos contra o deploy do Render. Cron agendado (`0 */12 * * *`) segue sem primeira
+        execução automática observada ainda, mas o mecanismo em si está validado.
   - [x] **Segredos do repo GitHub** (`Settings → Secrets and variables → Actions`) —
         preenchidos pelo usuário (2026-08-25): `JSONBIN_API_KEY`, `JSONBIN_ID_SUBS`,
         `APP_API_URL`, `APP_API_TOKEN`.

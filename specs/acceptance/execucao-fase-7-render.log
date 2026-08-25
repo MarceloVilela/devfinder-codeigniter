@@ -1,0 +1,88 @@
+Execução real da suíte de aceite contra o deploy real (Render + TiDB Cloud, ambiente "real"
+de http-client.env.json — baseUrl https://devfinder-codeigniter.onrender.com/v1), via
+
+  npx httpyac send *.http --env real --all
+
+Gerado em 2026-08-25. Saída bruta ficou muito grande (11k+ linhas) porque o `.http` de
+auth-github faz httpyac SEGUIR os redirects reais até github.com (páginas HTML completas do
+GitHub) e até http://localhost:3000/login (auth.webURL de produção, que não roda nada nesta
+máquina — 404 local, irrelevante). Este arquivo é um resumo curado por resultado, não o dump
+bruto.
+
+## IMPORTANTE — diferença de ambiente "real" vs "local"
+
+Os `.http` foram escritos assumindo a fixture sintética do `AcceptanceSeeder` (Canal
+Alpha/Beta/Zeta, dev01..dev05, etc.), usada só no Docker Compose local (Fases 3/5/6). O
+banco real (TiDB Cloud) tem o dump real (40 devs/186 canais/500 vídeos, sem essas fixtures).
+Por isso, todo caso que referencia um nome de fixture (`Canal Alpha`, `dev04`, `dev05`, `Canal
+Zeta`) devolve 400 "not found" contra "real" — **não é regressão, é ausência de dado**, já
+esperado e sem solução sem popular fixtures também em produção (fora de escopo).
+
+## Resultado por endpoint (status HTTP obtido)
+
+Leitura pública — todos OK, iguais ao comportamento documentado nas Fases 3/5/6:
+- GET /channels, /channels/{name}, /description/category, /description/feed — 200
+- GET /devs (com paginação real, bem mais que os 35 da fixture), /devs/{username} — 200
+- GET /feed/trending (paginação real), /feed/channel — 200
+- GET /video/{id} — 200
+- GET /me (token válido/sem token/malformado/username inexistente) — 200/401/401/401, igual
+  ao documentado
+
+Auth GitHub (auth-github.http) — **login real confirmado nesta sessão** (fora deste arquivo
+.http, via navegador): corrigido achado de deploy `app_baseURL` ausente (ver
+`../deploy/fase-7-deploy-render.md`). Os 2 casos automatizáveis batem com o esperado:
+- GET /auth/github → 302 pro GitHub (client_id preenchido, diferente do ambiente local)
+- GET /auth/github/callback sem code → 302 pro `auth.webURL/login` sem token (correto —
+  `auth_webURL` de produção ainda aponta pra `http://localhost:3000`, decisão consciente de
+  não apontar `devfinder-next` pra cá, ver `../../plan.md` Fase 7)
+
+**Achado real #1 — não é regressão, gap pré-existente reconfirmado**: `GET
+/feed/subscriptions` devolve **404** (rota não existe em `app/Config/Routes.php`) tanto sem
+token quanto autenticado, não 401/200 como o `.http` documenta. Já estava registrado como "não
+implementado" em `specs/fase-3-endpoints-leitura.md:148` desde a Fase 3 — nunca foi feito nas
+Fases 4/5/6. Contrato (`fase-0-openapi.yaml`) e modelo de dados (`fase-1-data-model.md`, seção
+4) preveem o endpoint, mas o Controller/rota nunca foi escrito. Fica registrado aqui como
+confirmação contra o ambiente real, não como achado novo.
+
+**Não é achado, é comportamento documentado**: `POST /devs` com username que não existe no
+GitHub → 500 (`RuntimeException` deliberada, ver `devs-store.http` e
+`fase-5-escrita-relacionamentos.md` — "achado real desta fase", já corrigido pra lançar erro
+claro em vez do bug silencioso do CI4 original). Bateu exatamente com o esperado.
+
+Escrita (channels/devs/video/likes/dislikes) — 400 nos casos que dependem de fixture
+inexistente em produção (ver seção acima), 401 nos casos sem token (correto). Casos que NÃO
+dependem de fixture rodaram de verdade contra o banco real — ver seção seguinte.
+
+## Efeito colateral real — dados de teste gravados no banco de produção
+
+Rodar `--all` inclui as requests de escrita, e várias delas não dependiam de fixture
+inexistente — foram inseridas de verdade no TiDB Cloud de produção. Confirmado via `curl`
+direto contra a API depois da suíte:
+
+| O que | Onde | Confirmado |
+|---|---|---|
+| Channel `"Canal Fase5 Teste"` (link `.../UCFASE5TEST`) | `channels-store.http`, casos 1+2 | `_id: 572144`, `category: "Categoria Nova"` |
+| Channel `"Canal Fase5 Com Dev"` (link `.../UCFASE5TEST2`, `userGithub: octocat`) | `channels-store.http`, caso 3 | `_id: 572145` |
+| Dev `dev01` (perfil GitHub real, `avatars.githubusercontent.com/u/667588`) | `devs-store.http`, caso "idempotente" — não existia de fato em produção | `_id: 30002` |
+| Dev `octocat` (perfil oficial do GitHub) | `devs-store.http`, caso "dev novo" | `_id: 30001` |
+| Video `"Video novo de teste HTTP — Otavio Miranda"` no canal real "Otávio Miranda" | `video-refresh-http.http`, caso "lote misto" — este `.http` já foi escrito citando o canal real do seed (`channel_id`), então FOI desenhado pra rodar contra produção | `_id: 30001`, `youtube_id: HTTPNEWVIDEO1` |
+| Reação `like`: `marcelovilela` → `dev01` | `likes-dislikes-devs.http`, caso "auto-like" — na prática NÃO foi auto-like (o `.http` assume `authToken` = token de `dev01`, mas o ambiente "real" usa `authToken` de `marcelovilela`) | confirmado via `GET /likes/devs` |
+
+**Nenhuma rota de DELETE existe pra channel/dev/video** (só like/dislike/follow/ignore têm
+DELETE) — limpar esses registros de teste exigiria acesso direto ao TiDB Cloud (`mysql`
+client), não uma chamada HTTP. Decisão de limpar ou manter fica com o usuário.
+
+## Ruído no log bruto (não é defeito da API)
+
+- `promise has read error ... ENOTDIR ... /php-codei/env`: httpyac tenta escanear um diretório
+  `env` ao procurar arquivos de ambiente, subindo os pais a partir de `specs/acceptance/` —
+  bate num ARQUIVO chamado `env` na raiz do projeto (não diretório). Não afeta o resultado
+  (`http-client.env.json`/`.private.env.json` foram lidos corretamente, os testes rodaram).
+- Páginas HTML completas de github.com e a resposta 404 de `localhost:3000` no meio do log:
+  httpyac segue redirect por padrão; os 2 casos de `auth-github.http` são só redirects sem
+  seguir por design (ver comentário no próprio `.http`) — o corpo extra é ruído do client, não
+  da API.
+
+## Comando exato usado
+
+    npx httpyac send *.http --env real --all

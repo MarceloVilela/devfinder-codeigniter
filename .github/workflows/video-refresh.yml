@@ -1,0 +1,57 @@
+name: Video Refresh
+
+on:
+  schedule:
+    - cron: '0 */12 * * *'
+  workflow_dispatch:
+
+jobs:
+  refresh:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    steps:
+      # Porta de `devfinder-api/.github/workflows/video-refresh.yml` (busca o bin, POSTa
+      # `{record}` pro endpoint de refresh) — sem checkout/npm porque aqui é só curl+jq contra
+      # a API já deployada, sem código de repo envolvido. Única diferença real: o bin usa
+      # `channel_name`, mas o contrato desta API (`POST /video/refresh`, fase-0-openapi.yaml)
+      # espera `channel` — mesma normalização que `app/Commands/VideoRefresh.php` faz pro
+      # `spark video:refresh` local, replicada aqui em `jq` pro gatilho HTTP agendado.
+      - name: Buscar candidatos no JSONBin.io e disparar ingestão
+        env:
+          JSONBIN_API_KEY: ${{ secrets.JSONBIN_API_KEY }}
+          JSONBIN_ID_SUBS: ${{ secrets.JSONBIN_ID_SUBS }}
+          APP_API_URL: ${{ secrets.APP_API_URL }}
+          APP_API_TOKEN: ${{ secrets.APP_API_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          bin=$(curl -sf "https://api.jsonbin.io/v3/b/${JSONBIN_ID_SUBS}" \
+            -H "Content-Type: application/json" \
+            -H "X-Master-Key: ${JSONBIN_API_KEY}")
+
+          record=$(echo "$bin" | jq -c '{record: [.record[] | {
+            title: (.title // ""),
+            url: (.url // ""),
+            channel: (.channel_name // ""),
+            channel_url: (.channel_url // ""),
+            thumbnail: (.thumbnail // "")
+          }]}')
+
+          echo "JSONBin: $(echo "$record" | jq '.record | length') candidato(s) encontrado(s)."
+
+          http_code=$(curl -s -o response.json -w '%{http_code}' \
+            -X POST "${APP_API_URL%/}/v1/video/refresh" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer ${APP_API_TOKEN}" \
+            -d "$record")
+
+          cat response.json
+          echo
+
+          if [ "$http_code" -ge 400 ]; then
+            echo "POST /v1/video/refresh falhou com HTTP ${http_code}"
+            exit 1
+          fi
+
+          echo "Adicionados: $(jq '.videosAdded | length' response.json) | Já existiam: $(jq '.videosFounded | length' response.json) | Erros: $(jq '.errors | length' response.json)"

@@ -157,7 +157,7 @@ consegue fazer isso pelo usuário:
   - `database_defaultGroup` (valor `tidbcloud`) já vem fixo no `render.yaml` (não é
     `sync: false`), mas ainda assim vale conferir na aba Environment que existe com esse nome
     novo — variáveis antigas com ponto não são renomeadas sozinhas quando o `render.yaml` muda.
-- [ ] **Criar (ou editar) o GitHub OAuth App** em github.com/settings/developers com
+- [x] **Criar (ou editar) o GitHub OAuth App** em github.com/settings/developers com
       *Authorization callback URL* = `https://<seu-app>.onrender.com/v1/auth/github/callback`
       — domínio diferente do de dev local (`localhost:8081`), precisa de callback próprio. Só
       depois desse passo dá pra preencher `auth.githubClientId`/`auth.githubClientSecret` no
@@ -176,14 +176,65 @@ consegue fazer isso pelo usuário:
       pro grupo `tidbcloud`) antes de cada deploy que dependa dela — o `preDeployCommand` no
       `render.yaml` fica como documentação de intenção, não como automação real, enquanto o
       serviço estiver no free tier.
-- [ ] **(Opcional) Cron da ingestão** — Render free não tem cron nativo confiável; configurar
-      um workflow do GitHub Actions com `schedule:` batendo em
-      `POST https://<seu-app>.onrender.com/v1/video/refresh` (mesmo padrão já avaliado pro
-      InfinityFree em `fase-7-deploy-infinityfree.md`), se quiser ingestão recorrente sem
-      depender de execução manual.
-- [ ] **Verificar os casos de aceite reais** contra a URL do Render depois do deploy —
-      `npx httpyac send specs/acceptance/*.http --env <novo-ambiente> --all`, mesmo padrão já
-      usado nas Fases 3/5/6 (`CLAUDE.md`).
+- [x] **Cron da ingestão** — Render free não tem cron nativo confiável; implementado
+      `.github/workflows/video-refresh.yml` (2026-08-25), porta de
+      `devfinder-api/.github/workflows/video-refresh.yml`: `schedule: '0 */12 * * *'` +
+      `workflow_dispatch`, busca o bin do JSONBin.io e faz `POST /v1/video/refresh` na URL do
+      Render (mesmo padrão já avaliado pro InfinityFree em
+      `fase-7-deploy-infinityfree.md`). Diferença do original: sem `checkout`/`npm ci` (o
+      workflow não roda código do repo, só `curl`+`jq`), e a normalização
+      `channel_name` → `channel` (achado da Fase 6, ver `app/Commands/VideoRefresh.php`) foi
+      replicada em `jq` porque o endpoint HTTP não normaliza — só o Command `spark
+      video:refresh` fazia isso antes.
+  - [x] **Segredos do repo GitHub** (`Settings → Secrets and variables → Actions`) —
+        preenchidos pelo usuário (2026-08-25): `JSONBIN_API_KEY`, `JSONBIN_ID_SUBS`,
+        `APP_API_URL`, `APP_API_TOKEN`.
+  - [x] **`APP_API_TOKEN` — decisão tomada** (2026-08-25): em vez de reaproveitar o token de
+        7 dias do login normal, criado `php spark token:mint <username> [--days N]
+        [--secret <jwtSecret>]` (`app/Commands/TokenMint.php` + `App\Libraries\Jwt::encode()`
+        ganhou um 2º parâmetro opcional de override de expiração). Só o token deste comando
+        usa expiração customizada — login normal via `AuthController` continua chamando
+        `Jwt::encode($username)` sem override, então **todo o resto dos usuários continua com
+        7 dias** (`auth.jwtExpirySeconds`), sem mudança de comportamento. Testado de ponta a
+        ponta contra o container real (`docker compose exec app php spark token:mint testuser
+        --days 365 --secret <secret-de-teste>`), token de 365 dias gerado e decodificado
+        corretamente.
+    - **Achado real**: o parser de opções do `spark` nesta versão do CI4 só reconhece
+      `--opcao valor` (espaço) — `--opcao=valor` (igual) é **ignorado silenciosamente**, sem
+      erro, e a opção cai no default (`--days=365` fica valendo `--days` não informado, e o
+      `--secret=...` nunca sobrescreve o `.env` local). Usar sempre a forma com espaço.
+    - [x] **Feito** (2026-08-25): token de 365 dias mintado pra `marcelovilela` e colado em
+          `APP_API_TOKEN`. **Nota de segurança**: o `auth_jwtSecret` de produção foi colado
+          neste chat pra gerar o token (fora do fluxo recomendado acima, que era rodar o
+          comando localmente sem expor o secret) — usuário rotacionou o secret no Render e
+          gerou o token de novo com o valor novo, mesmo dia. Repetir a mintagem a cada 365
+          dias (ou antes, se o secret de produção for rotacionado de novo).
+- [x] **Achado real — login GitHub OAuth quebrado em produção** (2026-08-25, achado durante a
+      verificação manual de `/feed/trending` e tentativa de login real no navegador): GitHub
+      recusava o authorize com "Be careful! The redirect_uri is not associated with this
+      application" — a URL gerada usava `redirect_uri=http://localhost:8080/v1/auth/github/
+      callback`, não o domínio do Render. Causa: `AuthController::login()` monta o callback
+      via `base_url()` (`app.baseURL`, `app/Config/App.php`, default
+      `http://localhost:8080/`), e a env var `app_baseURL` (`sync: false` no `render.yaml`,
+      preenchimento manual pós-1º-deploy) nunca tinha sido preenchida no dashboard — não é bug
+      de código, é item do todolist manual (linha 155 acima) que ficou pendente até agora.
+      **Corrigido pelo usuário**: `app_baseURL` adicionada no Environment do Render.
+      **Nota de segurança à parte**: o print do Environment do Render enviado pra diagnosticar
+      isso expunha `auth_githubClientSecret` em texto plano neste chat — usuário já gerou um
+      client secret novo no GitHub OAuth App e atualizou o Render (mesmo tratamento dado ao
+      `auth_jwtSecret` exposto antes, ver item anterior).
+- [x] **Verificar os casos de aceite reais** contra a URL do Render (2026-08-25) —
+      `npx httpyac send *.http --env real --all`, evidência completa em
+      `specs/acceptance/execucao-fase-7-render.log`. Leitura pública, `/me` e o fluxo GitHub
+      OAuth automatizável batem com o documentado. 1 achado real reconfirmado (não novo):
+      `GET /feed/subscriptions` → 404 (rota nunca implementada, já sabido desde
+      `fase-3-endpoints-leitura.md:148`). **Efeito colateral real**: como o banco de produção
+      não tem a fixture sintética das Fases 3/5/6, vários casos de escrita que não dependiam
+      de fixture inexistente rodaram de verdade contra o TiDB Cloud de produção — 2 channels,
+      2 devs, 1 video e 1 reação de like de teste foram gravados de verdade (lista completa no
+      log). Sem rota DELETE pra channel/dev/video — limpeza, se quiser, exige acesso direto ao
+      banco (`mysql` client), não HTTP. `ghostAuthToken` de `real` não foi gerado nesta rodada
+      (não bloqueou a verificação — nenhum caso da suíte batida dependia dele).
 
 ## Troubleshooting — 500 em `/v1/feed/trending` (2026-08-25, em andamento)
 

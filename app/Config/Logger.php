@@ -2,8 +2,8 @@
 
 namespace Config;
 
+use App\Libraries\Log\JsonFileHandler;
 use CodeIgniter\Config\BaseConfig;
-use CodeIgniter\Log\Handlers\FileHandler;
 use CodeIgniter\Log\Handlers\HandlerInterface;
 
 class Logger extends BaseConfig
@@ -79,11 +79,12 @@ class Logger extends BaseConfig
     public array $handlers = [
         /*
          * --------------------------------------------------------------------
-         * File Handler
+         * JSON File Handler (Fase 7, plan.md: "Logs estruturados (JSON)")
          * --------------------------------------------------------------------
+         * Substitui o FileHandler padrão (texto livre) — 1 objeto JSON por linha em
+         * writable/logs/log-{Y-m-d}.json.log, parseável por agregador de log sem regex.
          */
-        FileHandler::class => [
-            // The log levels that this handler will handle.
+        JsonFileHandler::class => [
             'handles' => [
                 'critical',
                 'alert',
@@ -94,15 +95,6 @@ class Logger extends BaseConfig
                 'notice',
                 'warning',
             ],
-
-            /*
-             * The default filename extension for log files.
-             * An extension of 'php' allows for protecting the log files via basic
-             * scripting, when they are to be stored under a publicly accessible directory.
-             *
-             * NOTE: Leaving it blank will default to 'log'.
-             */
-            'fileExtension' => '',
 
             /*
              * The file system permissions to be applied on newly created log files.

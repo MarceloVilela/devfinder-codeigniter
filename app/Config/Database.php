@@ -16,11 +16,18 @@ class Database extends Config
 
     /**
      * Lets you choose which connection group to use if no other is specified.
+     *
+     * Ponto único de troca de ambiente de banco — sobrescrever via `.env`
+     * (`database.defaultGroup = tidbcloud|default|dockerprod`), não editar este valor
+     * diretamente para trocar de ambiente. Ver specs/deploy/fase-7-deploy-mysql.md, seção
+     * "TiDB Cloud", e specs/deploy/fase-7-deploy-mysql-gcp.md (dockerprod, ainda não
+     * provisionado). 'default' aqui é só o fallback quando `.env` não define o override —
+     * é o que o CI usa (não seta `database.defaultGroup`, ver .github/workflows/ci.yml).
      */
     public string $defaultGroup = 'default';
 
     /**
-     * The default database connection.
+     * docker env local — MySQL 8.4 do `docker-compose.yml` (container `mysql`).
      *
      * @var array<string, mixed>
      */
@@ -156,6 +163,82 @@ class Database extends Config
     //            'time'     => 'H:i:s',
     //        ],
     //    ];
+
+    /**
+     * tidbcloud env staging — TiDB Cloud Starter (MySQL-compatível gerenciado, ver
+     * specs/deploy/fase-7-deploy-mysql.md, seção "TiDB Cloud"). Credenciais/host vêm de
+     * `.env` (`database.tidbcloud.*`, nunca versionado); TLS é obrigatório do lado do TiDB
+     * Cloud e fica fixado aqui em código (não é segredo, é infra) — CA da Let's Encrypt
+     * (ISRG Root X1), o mesmo emissor usado pelos certificados do gateway TiDB Cloud.
+     *
+     * @var array<string, mixed>
+     */
+    public array $tidbcloud = [
+        'DSN'          => '',
+        'hostname'     => '',
+        'username'     => '',
+        'password'     => '',
+        'database'     => '',
+        'DBDriver'     => 'MySQLi',
+        'DBPrefix'     => '',
+        'pConnect'     => false,
+        'DBDebug'      => true,
+        'charset'      => 'utf8mb4',
+        'DBCollat'     => 'utf8mb4_0900_ai_ci',
+        'swapPre'      => '',
+        'encrypt'      => [
+            'ssl_verify' => true,
+            'ssl_ca'     => ROOTPATH . 'docker/tidbcloud/ca.pem',
+        ],
+        'compress'     => false,
+        'strictOn'     => false,
+        'failover'     => [],
+        'port'         => 4000,
+        'numberNative' => false,
+        'foundRows'    => false,
+        'dateFormat'   => [
+            'date'     => 'Y-m-d',
+            'datetime' => 'Y-m-d H:i:s',
+            'time'     => 'H:i:s',
+        ],
+    ];
+
+    /**
+     * dockerprod — self-host MySQL 8.4 numa VM sempre-gratuita (Oracle Cloud ou GCP
+     * `e2-micro`, ver specs/deploy/fase-7-deploy-mysql-gcp.md). Placeholder: host/credenciais
+     * ainda não provisionados (item 7.5 de plan.md segue sem provedor escolhido) — grupo
+     * mantido aqui, vazio, para o dia em que a decisão for tomada bastar preencher `.env`
+     * (`database.dockerprod.*`) e trocar `database.defaultGroup`, sem editar este arquivo de
+     * novo.
+     *
+     * @var array<string, mixed>
+     */
+    public array $dockerprod = [
+        'DSN'          => '',
+        'hostname'     => '',
+        'username'     => '',
+        'password'     => '',
+        'database'     => '',
+        'DBDriver'     => 'MySQLi',
+        'DBPrefix'     => '',
+        'pConnect'     => false,
+        'DBDebug'      => true,
+        'charset'      => 'utf8mb4',
+        'DBCollat'     => 'utf8mb4_0900_ai_ci',
+        'swapPre'      => '',
+        'encrypt'      => false,
+        'compress'     => false,
+        'strictOn'     => false,
+        'failover'     => [],
+        'port'         => 3306,
+        'numberNative' => false,
+        'foundRows'    => false,
+        'dateFormat'   => [
+            'date'     => 'Y-m-d',
+            'datetime' => 'Y-m-d H:i:s',
+            'time'     => 'H:i:s',
+        ],
+    ];
 
     /**
      * This database connection is used when running PHPUnit database tests.

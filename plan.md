@@ -61,15 +61,20 @@ contrato público, com deploy real fora do Docker local.
 **Critérios de sucesso**:
 - Todos os endpoints listados em `portfolio.md` respondem com o mesmo shape de request/response
   hoje consumido por `devfinder-next`.
-- `devfinder-next` funciona apontando para a nova API sem alterar código do frontend.
+- `devfinder-next` funcionaria apontando para a nova API sem alterar código do frontend —
+  critério de **compatibilidade de contrato**, verificado byte a byte contra
+  `fase-0-openapi.yaml`, não um cutover de fato (ver Fase 7, "decisão de escopo": o frontend
+  não é alterado nem apontado para esta API, decisão do usuário de 2026-08-24 — este projeto é
+  portfólio de backend, mesmo objetivo já adotado em `../serverless`).
 - Ambiente local via Docker Compose (PHP-FPM + Nginx + MySQL) é o mesmo conjunto de containers
   usado no deploy real — sem divergência entre "como roda aqui" e "como roda em produção".
 - Deploy real dentro de camada genuinamente sempre-gratuita (ver `CLAUDE.md`, "Regra de
   custo", e `specs/infra-pending.md`).
 - Cada fase corresponde a um PR mergeado, com CI verde, referenciando sua spec.
 
-**Fora de escopo (v1)**: reescrever o frontend; scraping automatizado de novas fontes;
-autenticação além de GitHub OAuth; multi-região/alta disponibilidade.
+**Fora de escopo (v1)**: reescrever o frontend; apontar/alterar `devfinder-next` para esta API
+(ver Fase 7); scraping automatizado de novas fontes; autenticação além de GitHub OAuth;
+multi-região/alta disponibilidade.
 
 ---
 
@@ -228,17 +233,51 @@ mergeado.
 
 ## 8. Fase 7 — Observabilidade, testes e corte (cutover)
 
-- Logs estruturados (JSON) via handler de log do CodeIgniter 4.
-- Suíte de testes CIUnit cobrindo os casos de aceite críticos, rodando no CI a cada PR (não só
-  na fase em que foram escritos).
-- Testes de carga leves (ex. `autocannon`/`ab`) documentando latência real do monolito PHP —
-  material de comparação de portfólio contra a versão serverless.
-- Apontar `devfinder-next` (via variável de ambiente) para a nova API em staging, validar
-  manualmente os fluxos críticos (login, listar devs/canais, curtir/seguir).
-- Só então promover para o host real definitivo.
+> **Atualização 2026-08-24 — decisão de escopo**: o item de apontar `devfinder-next` pra nova
+> API (e qualquer cutover de fato) foi descartado por decisão do usuário — mesma decisão já
+> tomada no projeto irmão `../serverless` (`ssr.md`, Fase 7: "o frontend fica intocado,
+> apontando pra sempre pro `devfinder-api` original"). O objetivo deste projeto é portfólio de
+> backend — demonstrar o domínio replicado num monolito CI4/MySQL funcional de verdade, não
+> substituir a produção real do `devfinder-next`/`devfinder-api`. Isso não é uma pendência em
+> aberto, é escopo fechado conscientemente: `devfinder-next` **não é alterado nem apontado**
+> para esta API, nem em staging nem definitivamente.
+>
+> A vantagem que sobra é a mesma do projeto irmão: como o contrato público
+> (`fase-0-openapi.yaml`) foi preservado byte a byte em relação ao `devfinder-api` original, o
+> cutover **seria** possível a qualquer momento sem tocar uma linha do frontend — não precisar
+> fazer é a prova da paridade, não a ausência dela.
+>
+> Só o primeiro bullet (observabilidade) e o segundo (testes CIUnit) seguem valendo como
+> escopo real desta fase; testes de carga ficam opcionais (material de comparação de
+> portfólio, não critério de aceite); o cutover propriamente dito está fora de escopo.
 
-**Critério de aceite final**: checklist de paridade funcional 100% (todos os casos de aceite
-de `specs/acceptance/` verdes contra o deploy real), métricas publicadas. PR mergeado.
+- [x] **7.1** Logs estruturados (JSON) via handler de log do CodeIgniter 4.
+- [x] **7.2** Suíte de testes CIUnit cobrindo os casos de aceite críticos, rodando no CI a
+  cada PR (não só na fase em que foram escritos).
+- [x] **7.3** Testes de carga leves (`autocannon`) documentando latência real do monolito
+  PHP — material de comparação de portfólio (opcional, não bloqueia o critério de aceite).
+
+Execução dos 3 itens acima, com achados reais (N+1 em `GET /devs`, vazamento de
+`AuthContext` entre requests simuladas do harness de teste): ver
+[`fase-7-observabilidade-testes.md`](./fase-7-observabilidade-testes.md).
+
+- **7.4** ~~Apontar `devfinder-next` (via variável de ambiente) para a nova API em staging,
+  validar manualmente os fluxos críticos~~ — **confirmado fora de escopo pelo usuário em
+  2026-08-24** (mesma decisão do projeto irmão `../serverless`, ver atualização acima).
+- **7.5** Deploy real (host sempre-gratuito genuíno, ver `specs/infra-pending.md`) — **decisão
+  do usuário em 2026-08-24**: quer o deploy real acontecer (a API rodando de fato fora do
+  Docker local), mas **sem apontar `devfinder-next` pra ela** — mesma distinção já feita no
+  item 7.4/na decisão de escopo acima: deploy real é demonstração funcional de portfólio, não
+  vira produção do frontend. Escolha do provedor (Oracle Cloud Always Free vs. Google Cloud
+  e2-micro Always Free, ver `specs/infra-pending.md`, item 1) **adiada pelo usuário** ("decido
+  depois") — nenhuma execução/provisionamento ainda, só a intenção registrada aqui.
+
+**Critério de aceite final (revisado)**: logs estruturados implementados; suíte CIUnit
+cobrindo os casos de aceite críticos das Fases 3/5/6, rodando no CI a cada PR; todos os casos
+de aceite de `specs/acceptance/` verdes contra o deploy real (quando o host real existir) ou
+contra Docker Compose local (evidência já registrada nas Fases 3/5/6, ver
+`specs/acceptance/execucao-fase-*.log`). O checklist de paridade funcional contra produção do
+frontend real não se aplica (ver decisão de escopo acima). PR mergeado.
 
 ---
 

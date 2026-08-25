@@ -8,6 +8,9 @@ $routes->get('/', 'Home::index');
 $routes->group('v1', static function (RouteCollection $routes) {
     $routes->get('/', 'Home::index');
 
+    // Temporário — ver App\Controllers\DebugEnvController, remover junto.
+    $routes->get('_debug/env', 'DebugEnvController::env');
+
     $routes->get('devs', 'DevController::index', ['filter' => 'optionalAuth']);
     $routes->post('devs', 'DevController::store', ['filter' => 'requiredAuth']);
     $routes->get('devs/(:segment)', 'DevController::show/$1');

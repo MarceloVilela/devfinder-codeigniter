@@ -150,6 +150,12 @@ consegue fazer isso pelo usuário:
   - `auth.githubClientId` / `auth.githubClientSecret` — ver próximo item antes de preencher
   - `app.baseURL` / `auth.webURL` — só dá pra saber depois do 1º deploy, quando o Render atribui
     o subdomínio `https://<nome-do-serviço>.onrender.com/`
+  - ⚠️ **`database.defaultGroup`** (valor `tidbcloud`) — achado real (ver seção "Causa raiz
+    confirmada" abaixo): mesmo **não** sendo `sync: false` (o valor já vem fixo no
+    `render.yaml`), o Blueprint não aplicou essa var automaticamente no serviço — teve que ser
+    adicionada manualmente. Não confiar que campos com valor fixo no código chegam sozinhos;
+    depois de criar o Web Service, conferir a lista *completa* de env vars na aba Environment
+    contra o `render.yaml` inteiro, não só as chaves `sync: false`.
 - [ ] **Criar (ou editar) o GitHub OAuth App** em github.com/settings/developers com
       *Authorization callback URL* = `https://<seu-app>.onrender.com/v1/auth/github/callback`
       — domínio diferente do de dev local (`localhost:8081`), precisa de callback próprio. Só
@@ -242,6 +248,46 @@ volume de log, só adiciona um destino a mais pro que já seria logado.
 o Blueprint), reproduzir o 500 batendo em `/v1/feed/trending` de novo, e ler o stack trace real
 na aba *Logs* do dashboard (não precisa mais de Shell). Resultado ainda não coletado nesta
 rodada.
+
+## Causa raiz confirmada — `database.defaultGroup` nunca chegou no Render (2026-08-25)
+
+Commit do `ErrorlogHandler` acima (PR #9) mergeado, Render redeployou (`197739c`, live
+09:47). Batendo em `/v1/feed/trending` de novo, a aba *Logs* mostrou a exceção real pela
+primeira vez:
+
+```
+mysqli_sql_exception: No such file or directory
+  ...->real_connect('localhost', '', ***, '', 3306, '', 0)
+```
+
+`hostname=localhost`, `port=3306`, usuário/senha vazios — exatamente os valores **hardcoded do
+grupo `default`** em `app/Config/Database.php` (o grupo do `docker-compose.yml` local), não do
+grupo `tidbcloud`. Ou seja: `database.defaultGroup` nunca virou `tidbcloud` em produção — a
+aplicação sempre esteve tentando conectar no MySQL local inexistente dentro do container do
+Render.
+
+**Descartado código/imagem como causa**: reproduzi local com a mesma imagem
+(`docker build -f docker/render/Dockerfile .`) e as mesmas env vars injetadas via
+`--env-file` (sem `.env`, mesmo mecanismo do Render — nenhuma var lida de arquivo dentro do
+container), incluindo `database.defaultGroup=tidbcloud`. **Funcionou**: `GET /v1/feed/trending`
+→ `200`, `total: 500`, dados reais do TiDB Cloud. O Dockerfile/entrypoint/supervisord estão
+corretos — o problema nunca foi o container, foi a variável faltando no ambiente real.
+
+**Causa confirmada pelo usuário**: `database.defaultGroup` **não tem `sync: false`** no
+`render.yaml` — o valor `tidbcloud` já vem embutido no Blueprint como código, então na teoria
+não precisaria de preenchimento manual (diferente das credenciais/segredos, que são
+`sync: false` por design e *precisam* ser preenchidas no dashboard). Na prática, essa variável
+nunca foi criada no serviço — o Render não aplicou esse campo do Blueprint automaticamente.
+**Mesma categoria de falha já flagada no item do `preDeployCommand`** acima (campos do
+Blueprint que "nem sempre replicam 100% automaticamente"), agora confirmada também pra uma env
+var comum, não só pra `preDeployCommand`. **Lição pro checklist**: depois de criar o Web
+Service a partir de um Blueprint, não basta preencher só as chaves `sync: false` — é preciso
+conferir a lista *completa* de env vars na aba Environment contra o `render.yaml` inteiro,
+mesmo as que já têm valor fixo no código.
+
+Corrigido manualmente pelo usuário (adicionou `database.defaultGroup=tidbcloud` direto na aba
+Environment do dashboard) — Render redeployando de novo no momento em que este parágrafo foi
+escrito. Resultado da verificação pós-fix ainda não coletado.
 
 ## Conclusão
 
